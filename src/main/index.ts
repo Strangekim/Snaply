@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { installProtocolHandler, registerSchemes } from './protocol'
+import { syncAutoStart } from './autostart'
 import { createTray } from './tray'
 import { showWindow, closeAll, getWindow } from './windows'
 import { registerCoreIpc } from './ipcHandlers'
@@ -8,6 +9,11 @@ import { startCapture } from './capture'
 import { registerShortcuts, unregisterShortcuts } from './shortcuts'
 import { getSettings } from './settings'
 import { mkdirSync } from 'fs'
+
+// E2E: 임시 userData로 실행해 실제 설정/DB를 오염시키지 않는다
+if (process.env.SNAPLY_USER_DATA) {
+  app.setPath('userData', process.env.SNAPLY_USER_DATA)
+}
 
 // 단일 인스턴스 보장
 const gotLock = app.requestSingleInstanceLock()
@@ -33,6 +39,7 @@ if (!gotLock) {
 
     registerCoreIpc()
     registerShortcuts()
+    syncAutoStart()
 
     createTray({
       onCapture: (mode) => void startCapture({ mode }),

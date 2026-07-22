@@ -2,8 +2,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { BottomSheet, Button, Input, Segmented, SheetItem, ToastProvider, useToast } from '@ds/index'
-import type { LibraryFolder, LibraryItem } from '@shared/ipc'
+import type { ExportFormat, LibraryFolder, LibraryItem } from '@shared/ipc'
 import { useTheme } from '../common/useTheme'
+import { Onboarding } from '../onboarding/Onboarding'
 import styles from './library.module.css'
 import { useDebounced, useLibrary, type SidebarFilter } from './useLibrary'
 import { Sidebar } from './Sidebar'
@@ -136,6 +137,13 @@ function LibraryScreen(): JSX.Element {
   const [batchFormat, setBatchFormat] = useState<BatchFormat>('png')
   const [batchWatermark, setBatchWatermark] = useState('')
   const [batchRunning, setBatchRunning] = useState(false)
+
+  // 단건 내보내기 / 공유 시트
+  const [exportTarget, setExportTarget] = useState<LibraryItem | null>(null)
+  const [shareTarget, setShareTarget] = useState<LibraryItem | null>(null)
+  const [shareTargets, setShareTargets] = useState<
+    Array<{ id: string; label: string; available: boolean; comingSoon?: boolean }>
+  >([])
 
   // 캡처 완료 토스트
   useEffect(() => {
@@ -310,6 +318,37 @@ function LibraryScreen(): JSX.Element {
     setFilter((prev) => (prev.type === 'folder' && prev.folderId === target.id ? { type: 'all' } : prev))
   }, [folderDeleteTarget, toast])
 
+  // ── 단건 내보내기 / 공유 ──
+  const runExport = useCallback(
+    (item: LibraryItem, format: ExportFormat) => {
+      setExportTarget(null)
+      void window.snaply
+        .invoke('export:run', { itemId: item.id, format })
+        .then(({ filePath }) => {
+          toast('내보냈어요', { type: 'success' })
+          void window.snaply.invoke('file:showInFolder', filePath)
+        })
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : ''
+          if (!msg.includes('취소')) toast('내보내지 못했어요', { type: 'error' })
+        })
+    },
+    [toast]
+  )
+
+  const runShare = useCallback(
+    (item: LibraryItem, targetId: string) => {
+      setShareTarget(null)
+      void window.snaply
+        .invoke('share:run', { targetId, itemId: item.id })
+        .then(({ ok, message }) => {
+          if (message) toast(message, { type: ok ? 'success' : 'error' })
+        })
+        .catch(() => toast('공유하지 못했어요', { type: 'error' }))
+    },
+    [toast]
+  )
+
   const cardProps: Omit<ItemCardProps, 'item' | 'selected'> = {
     onTogglePin: togglePin,
     onToggleFavorite: toggleFavorite,
@@ -319,6 +358,11 @@ function LibraryScreen(): JSX.Element {
     onShowInFolder: showInFolder,
     onDelete: setDeleteTarget,
     onGrabText: openGrabText,
+    onExport: setExportTarget,
+    onShare: (item) => {
+      setShareTarget(item)
+      void window.snaply.invoke('share:targets', undefined).then(setShareTargets)
+    },
     selectMode,
     onSelectToggle: toggleSelect
   }
@@ -530,6 +574,44 @@ function LibraryScreen(): JSX.Element {
         </div>
       </BottomSheet>
 
+      {/* 단건 내보내기 시트 */}
+      <BottomSheet open={exportTarget !== null} onClose={() => setExportTarget(null)} title="어떤 형식으로 내보낼까요?">
+        {(['png', 'jpg', 'webp', 'pdf', 'tiff', 'pptx'] as ExportFormat[]).map((format) => (
+          <SheetItem
+            key={format}
+            title={format.toUpperCase()}
+            description={
+              format === 'pdf'
+                ? '문서로 보관하기 좋아요'
+                : format === 'pptx'
+                  ? '슬라이드로 바로 편집할 수 있어요'
+                  : format === 'webp'
+                    ? '용량이 작아요'
+                    : undefined
+            }
+            onClick={() => exportTarget && runExport(exportTarget, format)}
+          />
+        ))}
+      </BottomSheet>
+
+      {/* 공유 시트 */}
+      <BottomSheet open={shareTarget !== null} onClose={() => setShareTarget(null)} title="어디로 공유할까요?">
+        {shareTargets.map((target) => (
+          <SheetItem
+            key={target.id}
+            title={target.label}
+            description={target.comingSoon ? '준비 중이에요' : undefined}
+            disabled={!target.available}
+            onClick={() => {
+              if (target.available && shareTarget) runShare(shareTarget, target.id)
+            }}
+          />
+        ))}
+        {shareTargets.length === 0 && (
+          <div style={{ color: 'var(--text-sub)', padding: 'var(--space-3)' }}>공유 대상을 불러오고 있어요...</div>
+        )}
+      </BottomSheet>
+
       {/* 일괄 내보내기 시트 */}
       <BottomSheet
         open={batchSheetOpen}
@@ -578,9 +660,23 @@ function LibraryScreen(): JSX.Element {
 
 export function App(): JSX.Element {
   useTheme()
+  // 첫 실행이면 온보딩을 먼저 보여준다
+  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null)
+  useEffect(() => {
+    void window.snaply.invoke('settings:get', undefined).then((s) => setShowOnboarding(!s.onboardingDone))
+  }, [])
+
   return (
     <ToastProvider>
       <LibraryScreen />
+      {showOnboarding && (
+        <Onboarding
+          onDone={() => {
+            setShowOnboarding(false)
+            void window.snaply.invoke('settings:set', { onboardingDone: true })
+          }}
+        />
+      )}
     </ToastProvider>
   )
 }

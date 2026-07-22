@@ -224,11 +224,6 @@ export function registerCaptureIpc(): void {
     closeOverlay()
   })
 
-  handle('capture:getFrozenFrame', async ({ displayId }) => {
-    const frame = frozenFrames.get(displayId) ?? (await grabDisplayFrame(displayId)).image
-    return { dataUrl: frame.toDataURL(), displayId }
-  })
-
   handle('capture:commitRegion', async (rect) => {
     const { buffer, width, height } = cropFrame(rect)
     const filePath = savePngBuffer(buffer)

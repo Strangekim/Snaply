@@ -17,6 +17,28 @@ import {
   TrashIcon
 } from './icons'
 
+/** 내보내기 아이콘 (인라인 — 자체 제작 SVG) */
+function ExportIcon({ size = 15 }: { size?: number }): JSX.Element {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M8 10V2m0 0L5 5m3-3l3 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M2 10v2.5A1.5 1.5 0 003.5 14h9a1.5 1.5 0 001.5-1.5V10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/** 공유 아이콘 (인라인 — 자체 제작 SVG) */
+function ShareIcon({ size = 15 }: { size?: number }): JSX.Element {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="4" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="12" cy="3.5" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="12" cy="12.5" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M5.8 7.1l4.4-2.7M5.8 8.9l4.4 2.7" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  )
+}
+
 export interface ItemCardProps {
   item: LibraryItem
   onTogglePin: (item: LibraryItem) => void
@@ -27,6 +49,8 @@ export interface ItemCardProps {
   onShowInFolder: (item: LibraryItem) => void
   onDelete: (item: LibraryItem) => void
   onGrabText: (item: LibraryItem) => void
+  onExport: (item: LibraryItem) => void
+  onShare: (item: LibraryItem) => void
   /** 다중 선택 모드 */
   selectMode?: boolean
   selected?: boolean
@@ -45,6 +69,8 @@ export function ItemCard({
   onShowInFolder,
   onDelete,
   onGrabText,
+  onExport,
+  onShare,
   selectMode = false,
   selected = false,
   onSelectToggle
@@ -148,6 +174,14 @@ export function ItemCard({
                   </button>
                 </>
               )}
+              {isImage && (
+                <button type="button" className={styles.actionBtn} title="내보내요" onClick={() => onExport(item)}>
+                  <ExportIcon size={15} />
+                </button>
+              )}
+              <button type="button" className={styles.actionBtn} title="공유해요" onClick={() => onShare(item)}>
+                <ShareIcon size={15} />
+              </button>
               <button type="button" className={styles.actionBtn} title="폴더로 이동해요" onClick={() => onMove(item)}>
                 <FolderIcon size={15} />
               </button>

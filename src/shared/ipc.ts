@@ -167,8 +167,6 @@ export interface InvokeChannels {
   'capture:commitRegion': { req: RegionRect; res: CaptureResult }
   'capture:commitWindow': { req: { sourceId: string; title?: string; appName?: string }; res: CaptureResult }
   'capture:commitFullscreen': { req: { displayId: number }; res: CaptureResult }
-  /** 오버레이용: 현재 화면 프리즈 프레임 (dataURL) */
-  'capture:getFrozenFrame': { req: { displayId: number }; res: { dataUrl: string; displayId: number } }
   'capture:listDisplays': { req: void; res: DisplayInfo[] }
   'capture:listWindows': {
     req: void
@@ -215,6 +213,10 @@ export interface InvokeChannels {
   'settings:get': { req: void; res: AppSettings }
   'settings:set': { req: Partial<AppSettings>; res: AppSettings }
 
+  /** 공유 대상 플러그인 목록 (1차: 로컬 저장/클립보드/이메일. Slack/Drive는 stub) */
+  'share:targets': { req: void; res: Array<{ id: string; label: string; available: boolean; comingSoon?: boolean }> }
+  'share:run': { req: { targetId: string; itemId?: string; filePath?: string }; res: { ok: boolean; message?: string } }
+
   'window:open': { req: { window: 'editor' | 'library' | 'settings' | 'recorder'; payload?: unknown }; res: void }
   'window:close': { req: void; res: void }
   'window:minimize': { req: void; res: void }
@@ -222,6 +224,8 @@ export interface InvokeChannels {
 
   'file:readDataUrl': { req: string; res: string }
   'file:showInFolder': { req: string; res: void }
+  /** 폴더 선택 다이얼로그. 취소하면 null */
+  'dialog:pickFolder': { req: { title?: string; defaultPath?: string }; res: string | null }
 
   'app:getVersion': { req: void; res: string }
 }

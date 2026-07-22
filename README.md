@@ -57,6 +57,22 @@ npm run dist       # 배포 빌드 (electron-builder)
 
 Electron · React 19 · TypeScript strict · Zustand · Konva.js · node:sqlite · tesseract.js · ffmpeg-static · electron-vite · Vitest · Playwright
 
+## 알려진 제약 / 크로스플랫폼 TODO
+
+Windows에서 개발·검증했고, macOS 쪽은 아래 항목의 실기기 검증이 필요해요 (`TODO(platform-verify)` 주석으로 표시).
+
+| 영역 | 항목 |
+|---|---|
+| 스크롤 캡처 | macOS 휠 주입은 osascript 스텁 — CGEventCreateScrollWheelEvent 네이티브 헬퍼 필요 ([scrolling.ts](src/main/capture/scrolling.ts)) |
+| 창 캡처 | macOS는 창 제목에 앱 이름이 없어 앱 이름 추정 검증 필요 ([capture/index.ts](src/main/capture/index.ts)) |
+| 창 캡처 | 네이티브 창 경계 실시간 hover 감지는 미구현 — 창 목록 그리드로 대체 ([WindowPicker.tsx](src/renderer/src/overlay/WindowPicker.tsx)) |
+| 녹화 | 시스템 오디오 loopback은 Windows 전용, macOS는 오디오 없이 폴백 ([engine.ts](src/renderer/src/recorder/engine.ts)) |
+| 자동 시작 | macOS 13+ Login Items 노출 확인 필요 ([autostart.ts](src/main/autostart.ts)) |
+| 권한 | macOS 화면 기록 권한 상태 조회 연동 ([settings/App.tsx](src/renderer/src/settings/App.tsx)) |
+| OCR | 첫 실행 시 kor+eng traineddata(수 MB) CDN 다운로드 — 오프라인 번들 검토 ([ocr.ts](src/main/library/ocr.ts)) |
+| i18n | 영어 로케일은 설정 화면만 시범 적용 — 전 화면 확대 예정 ([strings.ts](src/renderer/src/settings/strings.ts)) |
+| 기타 | 비디오 썸네일(ffmpeg 첫 프레임), 자동 OCR 끄기 옵션, 녹화 창 크기 전용 IPC 채널 |
+
 ## 라이선스
 
 MIT. Snagit/TechSmith와 무관하며 어떤 에셋도 복제하지 않았어요. 폰트는 [Pretendard](https://github.com/orioncactus/pretendard)(OFL)를 사용해요.

@@ -8,6 +8,8 @@ import { registerCaptureIpc } from './capture'
 import { registerLibraryIpc } from './library'
 import { registerRecorderIpc } from './recorder'
 import { registerExportIpc } from './export'
+import { registerShareIpc } from './share'
+import { applyAutoStart } from './autostart'
 import { registerShortcuts } from './shortcuts'
 
 const MIME_BY_EXT: Record<string, string> = {
@@ -25,9 +27,11 @@ export function registerCoreIpc(): void {
 
   handle('settings:get', () => getSettings())
   handle('settings:set', (patch) => {
-    const prevHotkeys = JSON.stringify(getSettings().hotkeys)
+    const prev = getSettings()
+    const prevHotkeys = JSON.stringify(prev.hotkeys)
     const next = setSettings(patch)
     if (JSON.stringify(next.hotkeys) !== prevHotkeys) registerShortcuts()
+    if (next.autoStart !== prev.autoStart) applyAutoStart(next.autoStart)
     broadcast('event:settingsChanged', next)
     return next
   })
@@ -67,6 +71,16 @@ export function registerCoreIpc(): void {
   })
   handle('file:showInFolder', (filePath) => shell.showItemInFolder(filePath))
 
+  handle('dialog:pickFolder', async ({ title, defaultPath }) => {
+    const { dialog } = await import('electron')
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: title ?? '폴더 선택',
+      defaultPath,
+      properties: ['openDirectory', 'createDirectory']
+    })
+    return canceled || filePaths.length === 0 ? null : filePaths[0]
+  })
+
   handle('capture:listDisplays', () => {
     const primary = screen.getPrimaryDisplay()
     return screen.getAllDisplays().map((d, i) => ({
@@ -82,6 +96,7 @@ export function registerCoreIpc(): void {
   registerLibraryIpc()
   registerRecorderIpc()
   registerExportIpc()
+  registerShareIpc()
 }
 
 function findSender(event: Electron.IpcMainInvokeEvent): Electron.BrowserWindow | undefined {

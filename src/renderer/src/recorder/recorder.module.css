@@ -166,7 +166,7 @@
   font-size: 200px;
   font-weight: 800;
   color: var(--overlay-text);
-  text-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
+  text-shadow: 0 8px 40px var(--overlay-shadow-strong);
   animation: countPop 1s ease-out both;
   font-variant-numeric: tabular-nums;
 }
@@ -251,14 +251,14 @@
   height: 40px;
   border: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--overlay-surface);
   color: var(--overlay-text);
   cursor: pointer;
   transition: background var(--transition-fast);
 }
 
 .capsuleButton:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--overlay-surface-hover);
 }
 
 .stopButton {
@@ -297,7 +297,7 @@
   align-items: center;
   justify-content: center;
   color: var(--overlay-text);
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--overlay-scrim);
   pointer-events: none;
 }
 

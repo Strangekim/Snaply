@@ -2,7 +2,8 @@
  * Snaply 에디터 창 — Konva 기반 객체 주석 에디터. 소유자: Editor.
  */
 import { useCallback, useEffect, useState, type JSX } from 'react'
-import { Button, ToastProvider, useToast } from '@ds/index'
+import { BottomSheet, Button, SheetItem, ToastProvider, useToast } from '@ds/index'
+import type { ExportFormat } from '@shared/ipc'
 import { useTheme } from '../common/useTheme'
 import styles from './editor.module.css'
 import { docSize, useEditorStore } from './store'
@@ -129,6 +130,27 @@ function EditorShell(): JSX.Element {
       .finally(() => setRedacting(false))
   }, [redacting, toast])
 
+  /** 현재 문서를 원하는 포맷으로 내보내기 (평탄화 dataURL 기반) */
+  const [exportOpen, setExportOpen] = useState(false)
+  const handleExport = useCallback(
+    (format: ExportFormat): void => {
+      setExportOpen(false)
+      const dataUrl = flatten()
+      if (!dataUrl) return
+      void window.snaply
+        .invoke('export:run', { dataUrl, format })
+        .then(({ filePath }) => {
+          toast('내보냈어요', { type: 'success' })
+          void window.snaply.invoke('file:showInFolder', filePath)
+        })
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : ''
+          if (!msg.includes('취소')) toast('내보내지 못했어요', { type: 'error' })
+        })
+    },
+    [flatten, toast]
+  )
+
   useEditorShortcuts({ onSave: handleSave, onCopyImage: handleCopyImage })
 
   return (
@@ -197,6 +219,16 @@ function EditorShell(): JSX.Element {
           &nbsp;복사
         </Button>
         <Button
+          variant="secondary"
+          size="sm"
+          disabled={!imageUrl}
+          onClick={() => setExportOpen(true)}
+          title="PNG·JPG·WebP·PDF·TIFF·PPTX로 내보내요"
+        >
+          <IconSave size={16} />
+          &nbsp;내보내기
+        </Button>
+        <Button
           variant="primary"
           size="sm"
           disabled={!imageUrl}
@@ -224,6 +256,26 @@ function EditorShell(): JSX.Element {
       <StampPicker />
       <EffectsSheet />
       <TemplateSheet />
+
+      {/* 내보내기 포맷 선택 시트 */}
+      <BottomSheet open={exportOpen} onClose={() => setExportOpen(false)} title="어떤 형식으로 내보낼까요?">
+        {(['png', 'jpg', 'webp', 'pdf', 'tiff', 'pptx'] as ExportFormat[]).map((format) => (
+          <SheetItem
+            key={format}
+            title={format.toUpperCase()}
+            description={
+              format === 'pdf'
+                ? '문서로 보관하기 좋아요'
+                : format === 'pptx'
+                  ? '슬라이드로 바로 편집할 수 있어요'
+                  : format === 'webp'
+                    ? '용량이 작아요'
+                    : undefined
+            }
+            onClick={() => handleExport(format)}
+          />
+        ))}
+      </BottomSheet>
     </div>
   )
 }

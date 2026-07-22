@@ -48,6 +48,10 @@
   --overlay-text: rgba(255, 255, 255, 0.95);
   --overlay-text-sub: rgba(255, 255, 255, 0.6);
   --overlay-dim: rgba(23, 23, 28, 0.45);
+  --overlay-surface: rgba(255, 255, 255, 0.1);
+  --overlay-surface-hover: rgba(255, 255, 255, 0.2);
+  --overlay-scrim: rgba(0, 0, 0, 0.25);
+  --overlay-shadow-strong: rgba(0, 0, 0, 0.45);
 
   /* 형태 */
   --radius-card: 16px;
@@ -118,4 +122,15 @@ body {
 
 body.transparent {
   background: transparent;
+}
+
+/* 모션 최소화 설정을 존중한다 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
