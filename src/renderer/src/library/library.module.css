@@ -1,0 +1,462 @@
+/* 보관함 레이아웃/카드 스타일 — 토큰만 사용. 소유자: Library. */
+
+.root {
+  display: flex;
+  height: 100%;
+  background: var(--bg-page);
+}
+
+/* ───────── 사이드바 ───────── */
+
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4) var(--space-3);
+  border-right: 1px solid var(--border-divider);
+  background: var(--bg-card);
+  overflow-y: auto;
+}
+
+.brand {
+  font-size: var(--text-h2);
+  font-weight: 700;
+  color: var(--text-title);
+  padding: var(--space-2) var(--space-3) var(--space-4);
+}
+
+.navList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 10px var(--space-3);
+  border: none;
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--text-body);
+  font-family: var(--font);
+  font-size: var(--text-body-size);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.navItem:hover {
+  background: var(--bg-hover);
+}
+
+.navItemActive {
+  background: var(--primary-bg);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.navItemActive:hover {
+  background: var(--primary-bg);
+}
+
+.navIcon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.navLabel {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navCount {
+  font-size: var(--text-caption);
+  color: var(--text-sub);
+}
+
+.sectionTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-5);
+  padding: 0 var(--space-3) var(--space-2);
+  font-size: var(--text-caption);
+  color: var(--text-sub);
+  font-weight: 600;
+}
+
+.folderAddBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-sub);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.folderAddBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-body);
+}
+
+.folderDeleteBtn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-sub);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.navItem:hover .folderDeleteBtn {
+  display: inline-flex;
+}
+
+.folderDeleteBtn:hover {
+  color: var(--danger);
+  background: var(--bg-pressed);
+}
+
+.sidebarSpacer {
+  flex: 1;
+  min-height: var(--space-4);
+}
+
+/* ───────── 메인 영역 ───────── */
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--border-divider);
+  background: var(--bg-page);
+}
+
+.searchWrap {
+  flex: 1;
+  max-width: 420px;
+}
+
+.topbarRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5) var(--space-6) var(--space-8);
+}
+
+.contentTitle {
+  font-size: var(--text-section);
+  font-weight: 600;
+  color: var(--text-title);
+  margin: 0 0 var(--space-3);
+}
+
+/* ───────── 최근 캡처 스트립 ───────── */
+
+.strip {
+  display: flex;
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.stripCard {
+  position: relative;
+  flex-shrink: 0;
+  width: 148px;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  border: 1px solid var(--border-divider);
+  background: var(--bg-card);
+  cursor: pointer;
+  padding: 0;
+  transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.stripCard:hover {
+  box-shadow: var(--shadow-card);
+  transform: translateY(-1px);
+}
+
+.stripThumb {
+  width: 100%;
+  height: 92px;
+  object-fit: cover;
+  display: block;
+  background: var(--bg-input);
+}
+
+.stripMeta {
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-caption);
+  color: var(--text-sub);
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stripPin {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  padding: 4px;
+  border-radius: var(--radius-capsule);
+  background: var(--overlay-glass);
+  color: var(--overlay-text);
+}
+
+/* ───────── 그리드 뷰 ───────── */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: var(--space-4);
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border-divider);
+  transition: box-shadow var(--transition-base), transform var(--transition-base);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-float);
+  transform: translateY(-2px);
+}
+
+.thumbWrap {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: var(--bg-input);
+  overflow: hidden;
+}
+
+.thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* hover 액션 바 */
+.actions {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-2);
+  transform: translateX(-50%) translateY(6px);
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--radius-capsule);
+  background: var(--overlay-glass);
+  border: 1px solid var(--overlay-glass-border);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.card:hover .actions {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: var(--radius-capsule);
+  background: transparent;
+  color: var(--overlay-text);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.actionBtn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.actionBtnDanger:hover {
+  background: var(--danger);
+}
+
+/* 핀/즐겨찾기 토글 (썸네일 좌상단) */
+.toggles {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: flex;
+  gap: 4px;
+}
+
+.toggleBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-capsule);
+  background: var(--overlay-glass);
+  color: var(--overlay-text-sub);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.card:hover .toggleBtn,
+.toggleBtn.toggleOn {
+  opacity: 1;
+}
+
+.toggleBtn:hover {
+  color: var(--overlay-text);
+}
+
+.togglePinOn {
+  color: var(--primary);
+}
+
+.toggleFavOn {
+  color: var(--yellow-500);
+}
+
+.cardBody {
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.cardName {
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--text-title);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cardTime {
+  font-size: var(--text-caption);
+  color: var(--text-sub);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: var(--space-1);
+}
+
+.chip {
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: var(--radius-capsule);
+  background: var(--bg-input);
+  color: var(--text-sub);
+  white-space: nowrap;
+}
+
+/* ───────── 타임라인 뷰 ───────── */
+
+.timelineSection {
+  margin-bottom: var(--space-6);
+}
+
+.timelineHeader {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--space-2) 0;
+  background: var(--bg-page);
+  font-size: var(--text-body-size);
+  font-weight: 700;
+  color: var(--text-title);
+}
+
+/* ───────── 빈 상태 ───────── */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-4);
+  min-height: 320px;
+  text-align: center;
+}
+
+.emptyTitle {
+  font-size: var(--text-section);
+  font-weight: 600;
+  color: var(--text-title);
+}
+
+.emptyDesc {
+  font-size: var(--text-body-size);
+  color: var(--text-sub);
+}
+
+/* ───────── 폴더 추가 시트 ───────── */
+
+.folderForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-bottom: var(--space-2);
+}
+
+.deleteDesc {
+  color: var(--text-sub);
+  margin: 0 0 var(--space-4);
+}
+
+.sheetActions {
+  display: flex;
+  gap: var(--space-3);
+}

@@ -3,8 +3,10 @@ import { readFileSync } from 'fs'
 import { extname } from 'path'
 import { handle } from './typedIpc'
 import { getSettings, setSettings } from './settings'
-import { broadcast, getWindow, showWindow } from './windows'
+import { broadcast, getWindow, sendTo, showWindow } from './windows'
 import { registerCaptureIpc } from './capture'
+import { registerLibraryIpc } from './library'
+import { registerRecorderIpc } from './recorder'
 import { registerShortcuts } from './shortcuts'
 
 const MIME_BY_EXT: Record<string, string> = {
@@ -29,8 +31,16 @@ export function registerCoreIpc(): void {
     return next
   })
 
-  handle('window:open', ({ window }) => {
-    showWindow(window)
+  handle('window:open', ({ window, payload }) => {
+    const win = showWindow(window)
+    // 에디터 열기 + 항목 전달: payload에 {itemId, filePath}가 있으면 openInEditor 이벤트 전송
+    if (window === 'editor' && payload && typeof payload === 'object' && 'filePath' in payload) {
+      const item = payload as { itemId?: string; filePath: string }
+      const send = (): void =>
+        sendTo('editor', 'event:openInEditor', { itemId: item.itemId ?? '', filePath: item.filePath })
+      if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send)
+      else send()
+    }
   })
   handle('window:close', (_p, event) => {
     const win = findSender(event)
@@ -68,6 +78,8 @@ export function registerCoreIpc(): void {
   })
 
   registerCaptureIpc()
+  registerLibraryIpc()
+  registerRecorderIpc()
 }
 
 function findSender(event: Electron.IpcMainInvokeEvent): Electron.BrowserWindow | undefined {

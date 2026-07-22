@@ -25,8 +25,8 @@ export interface Rect {
   h: number
 }
 
-/** 오버레이에서 실제로 렌더링하는 모드 (all-in-one/scrolling은 region으로 시작) */
-export type OverlayMode = 'region' | 'window' | 'fullscreen'
+/** 오버레이에서 실제로 렌더링하는 모드 (all-in-one은 region으로 시작) */
+export type OverlayMode = 'region' | 'window' | 'fullscreen' | 'scrolling'
 
 export interface WindowSource {
   sourceId: string

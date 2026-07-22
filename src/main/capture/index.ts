@@ -3,8 +3,10 @@ import { mkdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
 import { handle } from '../typedIpc'
+import { bus } from '../bus'
 import { getSettings } from '../settings'
 import { broadcast, ensureWindow, getWindow, sendTo, showWindow } from '../windows'
+import { captureScrollingRegion } from './scrolling'
 import type { CaptureMode, CaptureOptions, CaptureResult, RegionRect } from '@shared/ipc'
 import { formatFilename } from '@shared/filename'
 
@@ -191,6 +193,7 @@ async function afterCapture(result: CaptureResult, options?: CaptureOptions): Pr
   frozenFrames = new Map()
   sessionOptions = null
   closeOverlay()
+  bus.emit('captureCompleted', result)
   broadcast('event:captureCompleted', result)
 
   const action = options?.afterAction ?? getSettings().afterCapture
@@ -284,8 +287,27 @@ export function registerCaptureIpc(): void {
       }))
   })
 
-  handle('capture:scrolling:start', async () => {
-    // Phase 2에서 구현 (스티칭)
-    throw new Error('스크롤 캡처는 아직 준비 중이에요.')
+  handle('capture:scrolling:start', async (rect) => {
+    // afterCapture가 sessionOptions를 비우므로 미리 보관
+    const options = sessionOptions
+    // 자동 스크롤 대상은 실제 화면이어야 하므로 오버레이를 먼저 숨긴다
+    await hideOverlayBeforeGrab()
+    frozenFrames = new Map()
+    // TODO(Phase 3): 진행 중 소형 진행 UI — 현재는 event:scrollProgress 브로드캐스트만 하고
+    // 수신해 표시하는 창이 없다. recorder 창과 별개의 미니 창에서 구독해 표시할 것.
+    const { buffer, width, height } = await captureScrollingRegion(rect, (p) =>
+      broadcast('event:scrollProgress', p)
+    )
+    const filePath = savePngBuffer(buffer)
+    const result: CaptureResult = {
+      id: randomUUID(),
+      filePath,
+      width,
+      height,
+      mode: 'scrolling',
+      createdAt: Date.now()
+    }
+    await afterCapture(result, options ?? undefined)
+    return result
   })
 }

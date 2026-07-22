@@ -71,10 +71,21 @@ interface RegionSelectProps {
   onCancel: () => void
   /** 드래그/조정 중인지 여부 (모드 캡슐 숨김 처리용) */
   onInteractingChange: (interacting: boolean) => void
+  /** 확정 버튼 라벨 (기본 '✓ 캡처' — 스크롤 모드에서 교체) */
+  commitLabel?: string
+  /** idle 안내 문구 (기본 영역 캡처 안내) */
+  idleHint?: string
 }
 
 /** 영역 선택: 십자선 + 돋보기 → 드래그 → 조정 단계(8방향 핸들 + 이동 + 액션바) */
-export function RegionSelect({ session, onCommit, onCancel, onInteractingChange }: RegionSelectProps): React.JSX.Element {
+export function RegionSelect({
+  session,
+  onCommit,
+  onCancel,
+  onInteractingChange,
+  commitLabel,
+  idleHint
+}: RegionSelectProps): React.JSX.Element {
   const [phase, setPhase] = useState<Phase>('idle')
   const [mouse, setMouse] = useState<{ x: number; y: number } | null>(null)
   const [sel, setSel] = useState<Rect | null>(null)
@@ -302,7 +313,7 @@ export function RegionSelect({ session, onCommit, onCancel, onInteractingChange 
             }}
             onClick={() => onCommit(sel, false)}
           >
-            ✓ 캡처
+            {commitLabel ?? '✓ 캡처'}
           </button>
           <button
             type="button"
@@ -360,7 +371,7 @@ export function RegionSelect({ session, onCommit, onCancel, onInteractingChange 
             pointerEvents: 'none'
           }}
         >
-          드래그해서 캡처할 영역을 선택해 주세요 · ESC 취소
+          {idleHint ?? '드래그해서 캡처할 영역을 선택해 주세요 · ESC 취소'}
         </div>
       )}
       {phase === 'adjust' && (

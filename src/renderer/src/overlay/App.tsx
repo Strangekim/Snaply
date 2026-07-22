@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { CaptureMode } from '@shared/ipc'
+import type { CaptureMode, RegionRect } from '@shared/ipc'
 import { overlayCss } from './glass'
 import { DisplayPicker } from './DisplayPicker'
 import { ModeCapsule } from './ModeCapsule'
@@ -10,7 +10,8 @@ import type { OverlayMode, Rect, Session, WindowSource } from './types'
 function toOverlayMode(mode: CaptureMode): OverlayMode {
   if (mode === 'window') return 'window'
   if (mode === 'fullscreen') return 'fullscreen'
-  // 'region' | 'all-in-one' | 'scrolling'(Phase 2 전까지 영역으로 대체)
+  if (mode === 'scrolling') return 'scrolling'
+  // 'region' | 'all-in-one'
   return 'region'
 }
 
@@ -56,10 +57,10 @@ export function App(): React.JSX.Element {
     return () => window.removeEventListener('keydown', onKey)
   }, [cancel])
 
-  // 영역 확정 → 디스플레이 로컬 좌표(DIP)로 변환해 커밋. 클립보드 버튼이면 결과를 클립보드에도 복사
-  const commitRegion = useCallback(
-    (rect: Rect, toClipboard: boolean) => {
-      if (!session || committing.current) return
+  // 오버레이 로컬 Rect → 디스플레이 로컬 좌표(DIP)의 RegionRect 변환
+  const toRegionRect = useCallback(
+    (rect: Rect): RegionRect | null => {
+      if (!session) return null
       // 선택 중심이 속한 디스플레이 기준으로 좌표 변환
       const cx = rect.x + rect.w / 2 + session.originX
       const cy = rect.y + rect.h / 2 + session.originY
@@ -72,17 +73,28 @@ export function App(): React.JSX.Element {
       const gy1 = Math.max(rect.y + session.originY, display.bounds.y)
       const gx2 = Math.min(rect.x + rect.w + session.originX, display.bounds.x + display.bounds.width)
       const gy2 = Math.min(rect.y + rect.h + session.originY, display.bounds.y + display.bounds.height)
-      if (gx2 - gx1 < 1 || gy2 - gy1 < 1) return
+      if (gx2 - gx1 < 1 || gy2 - gy1 < 1) return null
+      return {
+        x: gx1 - display.bounds.x,
+        y: gy1 - display.bounds.y,
+        width: gx2 - gx1,
+        height: gy2 - gy1,
+        displayId: display.id
+      }
+    },
+    [session]
+  )
+
+  // 영역 확정 → 커밋. 클립보드 버튼이면 결과를 클립보드에도 복사
+  const commitRegion = useCallback(
+    (rect: Rect, toClipboard: boolean) => {
+      if (!session || committing.current) return
+      const region = toRegionRect(rect)
+      if (!region) return
       committing.current = true
       setSession(null)
       void window.snaply
-        .invoke('capture:commitRegion', {
-          x: gx1 - display.bounds.x,
-          y: gy1 - display.bounds.y,
-          width: gx2 - gx1,
-          height: gy2 - gy1,
-          displayId: display.id
-        })
+        .invoke('capture:commitRegion', region)
         .then(async (result) => {
           if (toClipboard) {
             await window.snaply.invoke('clipboard:writeImage', { filePath: result.filePath })
@@ -92,7 +104,38 @@ export function App(): React.JSX.Element {
           committing.current = false
         })
     },
-    [session]
+    [session, toRegionRect]
+  )
+
+  // 스크롤 캡처: 영역 확정 → 메인이 오버레이를 숨기고 자동 스크롤+스티칭 수행
+  const commitScrolling = useCallback(
+    (rect: Rect, toClipboard: boolean) => {
+      if (!session || committing.current) return
+      const region = toRegionRect(rect)
+      if (!region) return
+      committing.current = true
+      setSession(null)
+      void window.snaply
+        .invoke('capture:scrolling:start', region)
+        .then(async (result) => {
+          if (toClipboard) {
+            await window.snaply.invoke('clipboard:writeImage', { filePath: result.filePath })
+          }
+        })
+        .catch(() => {
+          committing.current = false
+        })
+    },
+    [session, toRegionRect]
+  )
+
+  // 지연 캡처: 현재 모드로 delayMs 재시작 (메인이 오버레이를 닫고 카운트다운 후 재진입)
+  const selectDelay = useCallback(
+    (seconds: number) => {
+      if (!session) return
+      void window.snaply.invoke('capture:start', { mode, delayMs: seconds * 1000 })
+    },
+    [session, mode]
   )
 
   const commitWindow = useCallback((win: WindowSource) => {
@@ -153,14 +196,25 @@ export function App(): React.JSX.Element {
       <div style={{ position: 'absolute', inset: 0, background: 'var(--overlay-dim)', pointerEvents: 'none' }} />
 
       {/* 모드별 캡처 UI */}
-      {mode === 'region' && (
-        <RegionSelect session={session} onCommit={commitRegion} onCancel={cancel} onInteractingChange={setInteracting} />
+      {(mode === 'region' || mode === 'scrolling') && (
+        <RegionSelect
+          session={session}
+          onCommit={mode === 'scrolling' ? commitScrolling : commitRegion}
+          onCancel={cancel}
+          onInteractingChange={setInteracting}
+          commitLabel={mode === 'scrolling' ? '⇊ 스크롤 캡처' : undefined}
+          idleHint={
+            mode === 'scrolling'
+              ? '스크롤 캡처할 영역을 드래그로 선택해 주세요 · 시작하면 자동으로 스크롤돼요 · ESC 취소'
+              : undefined
+          }
+        />
       )}
       {mode === 'window' && <WindowPicker onPick={commitWindow} />}
       {mode === 'fullscreen' && session.displays.length > 1 && <DisplayPicker session={session} onPick={commitFullscreen} />}
 
       {/* 캡처 모드 캡슐 (드래그/조정 중에는 숨김) */}
-      {!interacting && <ModeCapsule mode={mode} onChange={setMode} onCancel={cancel} />}
+      {!interacting && <ModeCapsule mode={mode} onChange={setMode} onCancel={cancel} onDelaySelect={selectDelay} />}
     </div>
   )
 }
