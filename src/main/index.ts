@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
+import { installProtocolHandler, registerSchemes } from './protocol'
 import { createTray } from './tray'
 import { showWindow, closeAll, getWindow } from './windows'
 import { registerCoreIpc } from './ipcHandlers'
@@ -17,8 +18,11 @@ if (!gotLock) {
     showWindow('library')
   })
 
+  registerSchemes()
+
   app.whenReady().then(() => {
     electronApp.setAppUserModelId('com.snaply.app')
+    installProtocolHandler()
 
     // 저장 폴더 준비
     mkdirSync(getSettings().savePath, { recursive: true })

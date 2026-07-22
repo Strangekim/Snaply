@@ -1,0 +1,105 @@
+.container {
+  position: fixed;
+  bottom: var(--space-8);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+
+.capsule {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  background: var(--overlay-glass);
+  border: 1px solid var(--overlay-glass-border);
+  border-radius: var(--radius-capsule);
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: var(--overlay-text);
+  font-size: var(--text-body-size);
+  font-weight: 500;
+  animation: toast-enter var(--transition-base) both;
+}
+
+.leaving {
+  animation: toast-leave var(--transition-base) both;
+}
+
+.message {
+  white-space: nowrap;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+/* 성공 체크 — stroke-dashoffset 그리기 애니메이션 */
+.successCircle {
+  stroke: var(--success);
+  stroke-width: 2;
+  stroke-dasharray: 70;
+  stroke-dashoffset: 70;
+  animation: draw-stroke 300ms ease-out 80ms forwards;
+}
+
+.successCheck {
+  stroke: var(--success);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 15;
+  stroke-dashoffset: 15;
+  animation: draw-stroke 250ms ease-out 260ms forwards;
+}
+
+.errorCircle {
+  stroke: var(--danger);
+  stroke-width: 2;
+}
+
+.errorMark {
+  stroke: var(--danger);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.errorDot {
+  fill: var(--danger);
+}
+
+@keyframes draw-stroke {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-3));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-leave {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(var(--space-2));
+  }
+}

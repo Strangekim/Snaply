@@ -1,26 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { CaptureMode, DisplayInfo } from '@shared/ipc'
+import type { CaptureMode } from '@shared/ipc'
+import { overlayCss } from './glass'
+import { DisplayPicker } from './DisplayPicker'
+import { ModeCapsule } from './ModeCapsule'
+import { RegionSelect } from './RegionSelect'
+import { WindowPicker } from './WindowPicker'
+import type { OverlayMode, Rect, Session, WindowSource } from './types'
 
-interface Session {
-  mode: CaptureMode
-  frames: Array<{ displayId: number; dataUrl: string }>
-  displays: DisplayInfo[]
-  originX: number
-  originY: number
+function toOverlayMode(mode: CaptureMode): OverlayMode {
+  if (mode === 'window') return 'window'
+  if (mode === 'fullscreen') return 'fullscreen'
+  // 'region' | 'all-in-one' | 'scrolling'(Phase 2 전까지 영역으로 대체)
+  return 'region'
 }
 
-interface DragState {
-  startX: number
-  startY: number
-  x: number
-  y: number
-}
-
-/** Phase 0 기본 오버레이: 프리즈 화면 + 드래그 영역 선택. Phase 1에서 고도화 예정 */
+/** 오버레이 루트: 프리즈 프레임 + 모드 캡슐 + 모드별 캡처 UI */
 export function App(): React.JSX.Element {
   const [session, setSession] = useState<Session | null>(null)
-  const [drag, setDrag] = useState<DragState | null>(null)
+  const [mode, setMode] = useState<OverlayMode>('region')
+  const [interacting, setInteracting] = useState(false)
   const committing = useRef(false)
+
+  const cancel = useCallback(() => {
+    setSession(null)
+    setInteracting(false)
+    void window.snaply.invoke('capture:cancel', undefined)
+  }, [])
 
   useEffect(() => {
     const offStart = window.snaply.on('event:overlayStart', (payload) => {
@@ -29,79 +34,101 @@ export function App(): React.JSX.Element {
         const originX = Math.min(...displays.map((d) => d.bounds.x))
         const originY = Math.min(...displays.map((d) => d.bounds.y))
         setSession({ mode: payload.mode, frames: payload.frozenFrames, displays, originX, originY })
-        setDrag(null)
+        setMode(toOverlayMode(payload.mode))
+        setInteracting(false)
       })
     })
     const offCancel = window.snaply.on('event:overlayCancel', () => {
       setSession(null)
-      setDrag(null)
+      setInteracting(false)
     })
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') {
-        setSession(null)
-        setDrag(null)
-        void window.snaply.invoke('capture:cancel', undefined)
-      }
-    }
-    window.addEventListener('keydown', onKey)
     return () => {
       offStart()
       offCancel()
-      window.removeEventListener('keydown', onKey)
     }
   }, [])
 
-  const commit = useCallback(
-    (d: DragState) => {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') cancel()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [cancel])
+
+  // 영역 확정 → 디스플레이 로컬 좌표(DIP)로 변환해 커밋. 클립보드 버튼이면 결과를 클립보드에도 복사
+  const commitRegion = useCallback(
+    (rect: Rect, toClipboard: boolean) => {
       if (!session || committing.current) return
-      const x = Math.min(d.startX, d.x)
-      const y = Math.min(d.startY, d.y)
-      const width = Math.abs(d.x - d.startX)
-      const height = Math.abs(d.y - d.startY)
-      if (width < 4 || height < 4) {
-        setDrag(null)
-        return
-      }
       // 선택 중심이 속한 디스플레이 기준으로 좌표 변환
-      const cx = x + width / 2 + session.originX
-      const cy = y + height / 2 + session.originY
+      const cx = rect.x + rect.w / 2 + session.originX
+      const cy = rect.y + rect.h / 2 + session.originY
       const display =
         session.displays.find(
-          (dd) =>
-            cx >= dd.bounds.x && cx < dd.bounds.x + dd.bounds.width && cy >= dd.bounds.y && cy < dd.bounds.y + dd.bounds.height
+          (d) => cx >= d.bounds.x && cx < d.bounds.x + d.bounds.width && cy >= d.bounds.y && cy < d.bounds.y + d.bounds.height
         ) ?? session.displays[0]
+      // 해당 디스플레이 경계로 클램프 (디스플레이를 벗어난 부분은 잘라냄)
+      const gx1 = Math.max(rect.x + session.originX, display.bounds.x)
+      const gy1 = Math.max(rect.y + session.originY, display.bounds.y)
+      const gx2 = Math.min(rect.x + rect.w + session.originX, display.bounds.x + display.bounds.width)
+      const gy2 = Math.min(rect.y + rect.h + session.originY, display.bounds.y + display.bounds.height)
+      if (gx2 - gx1 < 1 || gy2 - gy1 < 1) return
       committing.current = true
       setSession(null)
-      setDrag(null)
-      void window.snaply.invoke('capture:commitRegion', {
-        x: x + session.originX - display.bounds.x,
-        y: y + session.originY - display.bounds.y,
-        width,
-        height,
-        displayId: display.id
-      })
+      void window.snaply
+        .invoke('capture:commitRegion', {
+          x: gx1 - display.bounds.x,
+          y: gy1 - display.bounds.y,
+          width: gx2 - gx1,
+          height: gy2 - gy1,
+          displayId: display.id
+        })
+        .then(async (result) => {
+          if (toClipboard) {
+            await window.snaply.invoke('clipboard:writeImage', { filePath: result.filePath })
+          }
+        })
+        .catch(() => {
+          committing.current = false
+        })
     },
     [session]
   )
 
+  const commitWindow = useCallback((win: WindowSource) => {
+    if (committing.current) return
+    committing.current = true
+    setSession(null)
+    void window.snaply
+      .invoke('capture:commitWindow', { sourceId: win.sourceId, title: win.title, appName: win.appName })
+      .catch(() => {
+        committing.current = false
+      })
+  }, [])
+
+  const commitFullscreen = useCallback((displayId: number) => {
+    if (committing.current) return
+    committing.current = true
+    setSession(null)
+    void window.snaply.invoke('capture:commitFullscreen', { displayId }).catch(() => {
+      committing.current = false
+    })
+  }, [])
+
+  // 전체 화면 모드 + 모니터 1대 → 선택할 것이 없으므로 즉시 캡처
+  useEffect(() => {
+    if (session && mode === 'fullscreen' && session.displays.length === 1) {
+      commitFullscreen(session.displays[0].id)
+    }
+  }, [session, mode, commitFullscreen])
+
   if (!session) return <></>
 
-  const sel = drag
-    ? {
-        x: Math.min(drag.startX, drag.x),
-        y: Math.min(drag.startY, drag.y),
-        w: Math.abs(drag.x - drag.startX),
-        h: Math.abs(drag.y - drag.startY)
-      }
-    : null
-
   return (
-    <div
-      style={{ position: 'fixed', inset: 0, cursor: 'crosshair' }}
-      onMouseDown={(e) => setDrag({ startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY })}
-      onMouseMove={(e) => drag && setDrag({ ...drag, x: e.clientX, y: e.clientY })}
-      onMouseUp={() => drag && commit(drag)}
-    >
+    <div style={{ position: 'fixed', inset: 0 }}>
+      <style>{overlayCss}</style>
+
+      {/* 프리즈 프레임 (디스플레이별) */}
       {session.frames.map((f) => {
         const d = session.displays.find((dd) => dd.id === f.displayId)
         if (!d) return null
@@ -109,6 +136,7 @@ export function App(): React.JSX.Element {
           <img
             key={f.displayId}
             src={f.dataUrl}
+            draggable={false}
             style={{
               position: 'absolute',
               left: d.bounds.x - session.originX,
@@ -120,81 +148,19 @@ export function App(): React.JSX.Element {
           />
         )
       })}
+
       {/* 딤 처리 */}
       <div style={{ position: 'absolute', inset: 0, background: 'var(--overlay-dim)', pointerEvents: 'none' }} />
-      {/* 선택 영역 */}
-      {sel && (
-        <div
-          style={{
-            position: 'absolute',
-            left: sel.x,
-            top: sel.y,
-            width: sel.w,
-            height: sel.h,
-            outline: '2px solid var(--primary)',
-            background: 'transparent',
-            overflow: 'hidden',
-            pointerEvents: 'none'
-          }}
-        >
-          {session.frames.map((f) => {
-            const d = session.displays.find((dd) => dd.id === f.displayId)
-            if (!d) return null
-            return (
-              <img
-                key={f.displayId}
-                src={f.dataUrl}
-                style={{
-                  position: 'absolute',
-                  left: d.bounds.x - session.originX - sel.x,
-                  top: d.bounds.y - session.originY - sel.y,
-                  width: d.bounds.width,
-                  height: d.bounds.height
-                }}
-              />
-            )
-          })}
-        </div>
+
+      {/* 모드별 캡처 UI */}
+      {mode === 'region' && (
+        <RegionSelect session={session} onCommit={commitRegion} onCancel={cancel} onInteractingChange={setInteracting} />
       )}
-      {sel && sel.w > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            left: sel.x,
-            top: Math.max(4, sel.y - 34),
-            padding: '4px 12px',
-            borderRadius: 'var(--radius-capsule)',
-            background: 'var(--overlay-glass)',
-            color: 'var(--overlay-text)',
-            fontSize: 'var(--text-caption)',
-            fontWeight: 500,
-            pointerEvents: 'none',
-            backdropFilter: 'blur(8px)'
-          }}
-        >
-          {sel.w} × {sel.h}
-        </div>
-      )}
-      {!drag && (
-        <div
-          style={{
-            position: 'absolute',
-            left: '50%',
-            top: 32,
-            transform: 'translateX(-50%)',
-            padding: '10px 20px',
-            borderRadius: 'var(--radius-capsule)',
-            background: 'var(--overlay-glass)',
-            border: '1px solid var(--overlay-glass-border)',
-            color: 'var(--overlay-text)',
-            fontSize: 'var(--text-body-size)',
-            backdropFilter: 'blur(12px)',
-            pointerEvents: 'none'
-          }}
-        >
-          드래그해서 영역을 선택하세요 · ESC 취소
-        </div>
-      )}
+      {mode === 'window' && <WindowPicker onPick={commitWindow} />}
+      {mode === 'fullscreen' && session.displays.length > 1 && <DisplayPicker session={session} onPick={commitFullscreen} />}
+
+      {/* 캡처 모드 캡슐 (드래그/조정 중에는 숨김) */}
+      {!interacting && <ModeCapsule mode={mode} onChange={setMode} onCancel={cancel} />}
     </div>
   )
 }

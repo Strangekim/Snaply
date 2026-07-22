@@ -1,0 +1,46 @@
+.toggle {
+  position: relative;
+  width: 51px;
+  height: 31px;
+  flex: none;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-capsule);
+  /* off 트랙: 라이트=grey-300, 다크=grey-600 으로 자동 대응되는 시맨틱 토큰 */
+  background: var(--text-disabled);
+  cursor: pointer;
+  transition: background-color var(--transition-base);
+}
+
+.toggle.on {
+  background: var(--primary);
+}
+
+.toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: var(--radius-capsule);
+  background: var(--white);
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-base);
+}
+
+.on .thumb {
+  transform: translateX(20px);
+}
+
+.toggle:active:not(:disabled) .thumb {
+  transform: scale(0.95);
+}
+
+.toggle.on:active:not(:disabled) .thumb {
+  transform: translateX(20px) scale(0.95);
+}

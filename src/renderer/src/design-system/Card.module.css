@@ -1,0 +1,28 @@
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.paddingMd {
+  padding: var(--space-5);
+}
+
+.paddingLg {
+  padding: var(--space-6);
+}
+
+.hoverable {
+  cursor: pointer;
+  transition:
+    background-color var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.hoverable:hover {
+  background: var(--bg-hover);
+}
+
+.hoverable:active {
+  background: var(--bg-pressed);
+}

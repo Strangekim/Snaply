@@ -6,21 +6,12 @@ import { handle } from '../typedIpc'
 import { getSettings } from '../settings'
 import { broadcast, ensureWindow, getWindow, sendTo, showWindow } from '../windows'
 import type { CaptureMode, CaptureOptions, CaptureResult, RegionRect } from '@shared/ipc'
+import { formatFilename } from '@shared/filename'
 
 // ─────────────── 파일 저장 유틸 ───────────────
 
 export function buildFileName(ext: string): string {
-  const now = new Date()
-  const pad = (n: number): string => String(n).padStart(2, '0')
-  const pattern = getSettings().filenamePattern || 'snaply-{yyyy}{MM}{dd}-{HH}{mm}{ss}'
-  const name = pattern
-    .replace('{yyyy}', String(now.getFullYear()))
-    .replace('{MM}', pad(now.getMonth() + 1))
-    .replace('{dd}', pad(now.getDate()))
-    .replace('{HH}', pad(now.getHours()))
-    .replace('{mm}', pad(now.getMinutes()))
-    .replace('{ss}', pad(now.getSeconds()))
-  return `${name}.${ext}`
+  return `${formatFilename(getSettings().filenamePattern, new Date())}.${ext}`
 }
 
 export function savePngBuffer(buf: Buffer): string {
@@ -67,6 +58,9 @@ async function grabDisplayFrame(displayId: number): Promise<Frame> {
 
 let pendingTimer: NodeJS.Timeout | null = null
 
+/** 현재 캡처 세션의 옵션 — 오버레이 커밋(commitRegion 등) 시 afterAction 등을 이어받기 위해 보관 */
+let sessionOptions: CaptureOptions | null = null
+
 export async function startCapture(options: CaptureOptions): Promise<void> {
   const delay = options.scheduledAt ? Math.max(0, options.scheduledAt - Date.now()) : (options.delayMs ?? 0)
   if (pendingTimer) {
@@ -74,16 +68,37 @@ export async function startCapture(options: CaptureOptions): Promise<void> {
     pendingTimer = null
   }
   if (delay > 0) {
-    pendingTimer = setTimeout(() => void beginCapture(options), delay)
+    // 지연 캡처: 열려 있던 오버레이를 먼저 닫은 뒤 카운트다운 시작.
+    // (오버레이가 떠 있는 채로 카운트하면 지연 후 프리즈 프레임에 오버레이가 함께 찍힌다)
+    closeOverlay()
+    frozenFrames = new Map()
+    pendingTimer = setTimeout(() => {
+      pendingTimer = null
+      void beginCapture(options)
+    }, delay)
     return
   }
   await beginCapture(options)
 }
 
+/** 오버레이가 화면에 보이는 상태라면 숨기고, 컴포지터가 반영할 시간을 잠깐 기다린다 */
+async function hideOverlayBeforeGrab(): Promise<void> {
+  const win = getWindow('overlay')
+  if (win && win.isVisible()) {
+    sendTo('overlay', 'event:overlayCancel', undefined)
+    win.hide()
+    await new Promise((resolve) => setTimeout(resolve, 180))
+  }
+}
+
 async function beginCapture(options: CaptureOptions): Promise<void> {
+  sessionOptions = options
   if (options.mode === 'fullscreen') {
     const displays = screen.getAllDisplays()
     if (displays.length === 1 || options.displayId != null) {
+      // 이전 세션의 프리즈 프레임이 남아 있으면 지금 화면과 다르므로 새로 획득
+      await hideOverlayBeforeGrab()
+      frozenFrames = new Map()
       const id = options.displayId ?? displays[0].id
       const result = await captureFullscreen(id)
       await afterCapture(result, options)
@@ -96,6 +111,7 @@ async function beginCapture(options: CaptureOptions): Promise<void> {
 
 async function openOverlay(mode: CaptureMode): Promise<void> {
   // 오버레이를 띄우기 전에 화면을 프리즈(현재 프레임 캡처)
+  await hideOverlayBeforeGrab()
   const frames = await grabAllDisplayFrames()
   const frozen = frames.map((f) => ({ displayId: f.displayId, dataUrl: f.image.toDataURL() }))
   frozenFrames = new Map(frames.map((f) => [f.displayId, f.image]))
@@ -142,19 +158,38 @@ function cropFrame(rect: RegionRect): { buffer: Buffer; width: number; height: n
   const frame = frozenFrames.get(rect.displayId)
   if (!frame) throw new Error('프리즈된 프레임이 없어요. 캡처를 다시 시작해 주세요.')
   const display = screen.getAllDisplays().find((d) => d.id === rect.displayId)
-  const scale = display ? frame.getSize().width / display.bounds.width : 1
-  const cropped = frame.crop({
-    x: Math.round(rect.x * scale),
-    y: Math.round(rect.y * scale),
-    width: Math.round(rect.width * scale),
-    height: Math.round(rect.height * scale)
-  })
+  const frameSize = frame.getSize()
+  // DPI 대응: rect는 DIP 좌표, 프레임은 물리 픽셀일 수 있다.
+  // scaleFactor를 그대로 쓰지 않고 "실제 프레임 크기 / 디스플레이 DIP 크기"를 축별로 계산해
+  // desktopCapturer가 썸네일을 임의 배율로 맞춰 반환하는 경우(scaleFactor≠1 포함)에도 정확히 크롭한다.
+  const scaleX = display ? frameSize.width / display.bounds.width : 1
+  const scaleY = display ? frameSize.height / display.bounds.height : 1
+  const x = Math.min(Math.max(0, Math.round(rect.x * scaleX)), frameSize.width - 1)
+  const y = Math.min(Math.max(0, Math.round(rect.y * scaleY)), frameSize.height - 1)
+  const width = Math.max(1, Math.min(Math.round(rect.width * scaleX), frameSize.width - x))
+  const height = Math.max(1, Math.min(Math.round(rect.height * scaleY), frameSize.height - y))
+  const cropped = frame.crop({ x, y, width, height })
   const size = cropped.getSize()
   return { buffer: cropped.toPNG(), width: size.width, height: size.height }
 }
 
+/** 창 제목에서 앱 이름 추정.
+ * Windows의 desktopCapturer source name은 보통 "문서 이름 - 앱 이름" 형태라 마지막 구분자 뒤를 앱 이름으로 사용한다.
+ * TODO(platform-verify): macOS는 창 제목에 앱 이름이 붙지 않는 경우가 많아(owning application 정보 미제공) 별도 API 검증 필요 */
+function inferAppName(title: string): string | undefined {
+  for (const sep of [' - ', ' — ', ' – ']) {
+    const idx = title.lastIndexOf(sep)
+    if (idx > 0 && idx + sep.length < title.length) {
+      const candidate = title.slice(idx + sep.length).trim()
+      if (candidate.length > 0 && candidate.length <= 40) return candidate
+    }
+  }
+  return undefined
+}
+
 async function afterCapture(result: CaptureResult, options?: CaptureOptions): Promise<void> {
   frozenFrames = new Map()
+  sessionOptions = null
   closeOverlay()
   broadcast('event:captureCompleted', result)
 
@@ -180,6 +215,7 @@ export function registerCaptureIpc(): void {
       pendingTimer = null
     }
     frozenFrames = new Map()
+    sessionOptions = null
     closeOverlay()
   })
 
@@ -199,13 +235,13 @@ export function registerCaptureIpc(): void {
       mode: 'region',
       createdAt: Date.now()
     }
-    await afterCapture(result)
+    await afterCapture(result, sessionOptions ?? undefined)
     return result
   })
 
   handle('capture:commitFullscreen', async ({ displayId }) => {
     const result = await captureFullscreen(displayId)
-    await afterCapture(result)
+    await afterCapture(result, sessionOptions ?? undefined)
     return result
   })
 
@@ -226,9 +262,9 @@ export function registerCaptureIpc(): void {
       mode: 'window',
       createdAt: Date.now(),
       sourceTitle: title ?? source.name,
-      sourceApp: appName
+      sourceApp: appName ?? inferAppName(title ?? source.name)
     }
-    await afterCapture(result)
+    await afterCapture(result, sessionOptions ?? undefined)
     return result
   })
 
@@ -239,11 +275,11 @@ export function registerCaptureIpc(): void {
       fetchWindowIcons: true
     })
     return sources
-      .filter((s) => s.name && s.name !== 'Snaply')
+      .filter((s) => s.name && !s.name.startsWith('Snaply') && s.thumbnail && !s.thumbnail.isEmpty())
       .map((s) => ({
         sourceId: s.id,
         title: s.name,
-        appName: undefined,
+        appName: inferAppName(s.name),
         thumbnailDataUrl: s.thumbnail.toDataURL()
       }))
   })
