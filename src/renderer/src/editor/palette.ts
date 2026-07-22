@@ -39,3 +39,16 @@ export function resolveColor(id: ColorId): string {
 
 /** 캔버스 텍스트용 폰트 (tokens.css --font와 동일 계열) */
 export const CANVAS_FONT = 'Pretendard, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif'
+
+/** #rrggbb 색상에 알파를 입혀 rgba()로 변환 (그 외 형식은 그대로 반환) */
+export function withAlpha(color: string, alpha: number): string {
+  const m = /^#([0-9a-fA-F]{6})$/.exec(color.trim())
+  if (!m) return color
+  const n = parseInt(m[1], 16)
+  return `rgba(${(n >> 16) & 0xff}, ${(n >> 8) & 0xff}, ${n & 0xff}, ${alpha})`
+}
+
+/** 캔버스 그림자 색 — --grey-900 토큰에서 resolve (하드코딩 금지) */
+export function resolveCanvasShadow(alpha = 0.25): string {
+  return withAlpha(resolveCssVar('--grey-900'), alpha)
+}

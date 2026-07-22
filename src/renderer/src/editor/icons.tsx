@@ -160,3 +160,70 @@ export function IconReset({ size = 20 }: IconProps): JSX.Element {
     </svg>
   )
 }
+
+export function IconBlur({ size = 20 }: IconProps): JSX.Element {
+  return (
+    <svg {...svgProps(size)}>
+      <rect x="3.5" y="3.5" width="13" height="13" rx="1.5" />
+      <path d="M8 3.5v13M12.5 3.5v13M3.5 8h13M3.5 12.5h13" opacity="0.55" />
+    </svg>
+  )
+}
+
+export function IconSpotlight({ size = 20 }: IconProps): JSX.Element {
+  return (
+    <svg {...svgProps(size)}>
+      <rect x="2.5" y="2.5" width="15" height="15" rx="2" opacity="0.4" />
+      <circle cx="10" cy="10" r="4.5" />
+      <path d="M10 3v2M10 15v2M3 10h2M15 10h2" opacity="0.6" />
+    </svg>
+  )
+}
+
+export function IconMagnify({ size = 20 }: IconProps): JSX.Element {
+  return (
+    <svg {...svgProps(size)}>
+      <circle cx="8.5" cy="8.5" r="5.5" />
+      <path d="M12.8 12.8L17 17" strokeWidth="2" />
+      <path d="M6.5 8.5h4M8.5 6.5v4" opacity="0.7" />
+    </svg>
+  )
+}
+
+export function IconStamp({ size = 20 }: IconProps): JSX.Element {
+  return (
+    <svg {...svgProps(size)}>
+      <path d="M7.5 8.5V5a2.5 2.5 0 0 1 5 0v3.5" />
+      <path d="M4.5 12.5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1.5h-11v-1.5z" />
+      <path d="M4 17h12" />
+    </svg>
+  )
+}
+
+export function IconShield({ size = 20 }: IconProps): JSX.Element {
+  return (
+    <svg {...svgProps(size)}>
+      <path d="M10 2.5l6 2.2v4.5c0 4-2.5 6.8-6 8.3-3.5-1.5-6-4.3-6-8.3V4.7l6-2.2z" />
+      <path d="M7.5 9.8l1.8 1.8 3.2-3.6" />
+    </svg>
+  )
+}
+
+export function IconSparkle({ size = 20 }: IconProps): JSX.Element {
+  return (
+    <svg {...svgProps(size)}>
+      <path d="M10 3l1.6 4.4L16 9l-4.4 1.6L10 15l-1.6-4.4L4 9l4.4-1.6L10 3z" />
+      <path d="M15.5 13.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7.7-1.8z" />
+    </svg>
+  )
+}
+
+export function IconTemplate({ size = 20 }: IconProps): JSX.Element {
+  return (
+    <svg {...svgProps(size)}>
+      <rect x="3" y="3" width="14" height="14" rx="1.5" />
+      <path d="M3 7.5h14" />
+      <path d="M8.5 7.5V17" />
+    </svg>
+  )
+}

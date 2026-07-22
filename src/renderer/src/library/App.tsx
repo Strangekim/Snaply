@@ -1,5 +1,5 @@
 /** Snaply 보관함 화면. 소유자: Library. */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { BottomSheet, Button, Input, Segmented, SheetItem, ToastProvider, useToast } from '@ds/index'
 import type { LibraryFolder, LibraryItem } from '@shared/ipc'
@@ -12,6 +12,7 @@ import { CameraIcon, FolderIcon, GridIcon, PinIcon, TimelineIcon } from './icons
 import { dayKey, dayLabel, fileName, relativeTime, toSnaplyFileUrl } from './format'
 
 type ViewMode = 'grid' | 'timeline'
+type BatchFormat = 'png' | 'jpg' | 'webp'
 
 // ───────────────────────── 빈 상태 ─────────────────────────
 
@@ -69,10 +70,12 @@ function RecentStrip({ items, onOpen }: { items: LibraryItem[]; onOpen: (item: L
 
 function TimelineView({
   items,
-  cardProps
+  cardProps,
+  selectedIds
 }: {
   items: LibraryItem[]
-  cardProps: Omit<ItemCardProps, 'item'>
+  cardProps: Omit<ItemCardProps, 'item' | 'selected'>
+  selectedIds: ReadonlySet<string>
 }): JSX.Element {
   const groups = useMemo(() => {
     const map = new Map<string, LibraryItem[]>()
@@ -92,7 +95,7 @@ function TimelineView({
           <div className={styles.timelineHeader}>{dayLabel(group[0].createdAt)}</div>
           <div className={styles.grid}>
             {group.map((item) => (
-              <ItemCard key={item.id} item={item} {...cardProps} />
+              <ItemCard key={item.id} item={item} selected={selectedIds.has(item.id)} {...cardProps} />
             ))}
           </div>
         </section>
@@ -117,6 +120,22 @@ function LibraryScreen(): JSX.Element {
   const [folderSheetOpen, setFolderSheetOpen] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [folderDeleteTarget, setFolderDeleteTarget] = useState<LibraryFolder | null>(null)
+
+  // 텍스트 추출(Grab Text) 시트 상태
+  const [ocrTarget, setOcrTarget] = useState<LibraryItem | null>(null)
+  const [ocrText, setOcrText] = useState<string | null>(null)
+  const [ocrLoading, setOcrLoading] = useState(false)
+  const [ocrError, setOcrError] = useState<string | null>(null)
+
+  // 다중 선택 + 배치 내보내기 상태
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set())
+  const lastSelectedIndexRef = useRef<number | null>(null)
+  const [batchSheetOpen, setBatchSheetOpen] = useState(false)
+  const [batchWidth, setBatchWidth] = useState('')
+  const [batchFormat, setBatchFormat] = useState<BatchFormat>('png')
+  const [batchWatermark, setBatchWatermark] = useState('')
+  const [batchRunning, setBatchRunning] = useState(false)
 
   // 캡처 완료 토스트
   useEffect(() => {
@@ -175,6 +194,97 @@ function LibraryScreen(): JSX.Element {
     [moveTarget, toast]
   )
 
+  // ── 텍스트 추출 (Grab Text) ──
+  const recognizeText = useCallback((item: LibraryItem, force: boolean) => {
+    if (!force && item.ocrText) {
+      // 이미 인식된 텍스트가 있으면 즉시 표시
+      setOcrText(item.ocrText)
+      setOcrLoading(false)
+      setOcrError(null)
+      return
+    }
+    setOcrText(null)
+    setOcrError(null)
+    setOcrLoading(true)
+    void window.snaply
+      .invoke('ocr:run', { source: item.filePath, languages: 'kor+eng' })
+      .then((result) => {
+        setOcrText(result.text)
+        setOcrLoading(false)
+        // 인식 결과를 항목에 저장 → FTS 검색에도 반영
+        void window.snaply.invoke('library:update', { id: item.id, patch: { ocrText: result.text } })
+      })
+      .catch(() => {
+        setOcrLoading(false)
+        setOcrError('텍스트를 추출하지 못했어요. 잠시 후 다시 시도해 주세요.')
+      })
+  }, [])
+
+  const openGrabText = useCallback(
+    (item: LibraryItem) => {
+      setOcrTarget(item)
+      recognizeText(item, false)
+    },
+    [recognizeText]
+  )
+
+  const copyOcrText = useCallback(() => {
+    if (!ocrText) return
+    void window.snaply
+      .invoke('clipboard:writeText', ocrText)
+      .then(() => toast('텍스트를 복사했어요'))
+      .catch(() => toast('복사하지 못했어요', { type: 'error' }))
+  }, [ocrText, toast])
+
+  // ── 다중 선택 / 배치 내보내기 ──
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false)
+    setSelectedIds(new Set())
+    lastSelectedIndexRef.current = null
+  }, [])
+
+  const toggleSelect = useCallback(
+    (item: LibraryItem, shiftKey: boolean) => {
+      const index = items.findIndex((i) => i.id === item.id)
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        const anchor = lastSelectedIndexRef.current
+        if (shiftKey && anchor !== null && index >= 0) {
+          // Shift 클릭: 마지막 클릭 지점부터 범위 선택
+          const [from, to] = anchor < index ? [anchor, index] : [index, anchor]
+          for (let i = from; i <= to; i++) next.add(items[i].id)
+        } else if (next.has(item.id)) {
+          next.delete(item.id)
+        } else {
+          next.add(item.id)
+        }
+        return next
+      })
+      lastSelectedIndexRef.current = index
+    },
+    [items]
+  )
+
+  const runBatchExport = useCallback(() => {
+    const width = Number.parseInt(batchWidth, 10)
+    setBatchRunning(true)
+    void window.snaply
+      .invoke('export:batch', {
+        itemIds: [...selectedIds],
+        resize: Number.isFinite(width) && width > 0 ? { width } : undefined,
+        watermarkText: batchWatermark.trim() || undefined,
+        format: batchFormat
+      })
+      .then(({ outputDir, count }) => {
+        toast(`${count}개를 내보냈어요`, { type: 'success' })
+        void window.snaply.invoke('file:showInFolder', outputDir)
+        setBatchSheetOpen(false)
+        exitSelectMode()
+      })
+      .catch(() => toast('내보내지 못했어요', { type: 'error' }))
+      .finally(() => setBatchRunning(false))
+  }, [batchWidth, batchWatermark, batchFormat, selectedIds, toast, exitSelectMode])
+
   // ── 폴더 액션 ──
   const createFolder = useCallback(() => {
     const name = newFolderName.trim()
@@ -200,14 +310,17 @@ function LibraryScreen(): JSX.Element {
     setFilter((prev) => (prev.type === 'folder' && prev.folderId === target.id ? { type: 'all' } : prev))
   }, [folderDeleteTarget, toast])
 
-  const cardProps: Omit<ItemCardProps, 'item'> = {
+  const cardProps: Omit<ItemCardProps, 'item' | 'selected'> = {
     onTogglePin: togglePin,
     onToggleFavorite: toggleFavorite,
     onEdit: openInEditor,
     onCopy: copyToClipboard,
     onMove: setMoveTarget,
     onShowInFolder: showInFolder,
-    onDelete: setDeleteTarget
+    onDelete: setDeleteTarget,
+    onGrabText: openGrabText,
+    selectMode,
+    onSelectToggle: toggleSelect
   }
 
   const searching = searchText.trim().length > 0
@@ -235,6 +348,13 @@ function LibraryScreen(): JSX.Element {
             />
           </div>
           <div className={styles.topbarRight}>
+            <Button
+              variant={selectMode ? 'primary' : 'secondary'}
+              size="md"
+              onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+            >
+              {selectMode ? '선택 끝내기' : '선택'}
+            </Button>
             <Segmented<ViewMode>
               aria-label="보기 방식"
               size="md"
@@ -268,14 +388,32 @@ function LibraryScreen(): JSX.Element {
               {showStrip && <h2 className={styles.contentTitle}>모든 캡처</h2>}
               <div className={styles.grid}>
                 {items.map((item) => (
-                  <ItemCard key={item.id} item={item} {...cardProps} />
+                  <ItemCard key={item.id} item={item} selected={selectedIds.has(item.id)} {...cardProps} />
                 ))}
               </div>
             </>
           ) : (
-            <TimelineView items={items} cardProps={cardProps} />
+            <TimelineView items={items} cardProps={cardProps} selectedIds={selectedIds} />
           )}
         </div>
+
+        {/* 다중 선택 하단 액션바 */}
+        {selectMode && (
+          <div className={styles.selectBar}>
+            <span className={styles.selectCount}>{selectedIds.size}개 선택됨</span>
+            <Button variant="secondary" size="md" onClick={exitSelectMode}>
+              취소해요
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              disabled={selectedIds.size === 0}
+              onClick={() => setBatchSheetOpen(true)}
+            >
+              일괄 내보내기
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* 폴더 이동 시트 */}
@@ -359,6 +497,78 @@ function LibraryScreen(): JSX.Element {
           </Button>
           <Button variant="danger" fullWidth onClick={confirmDeleteFolder}>
             삭제해요
+          </Button>
+        </div>
+      </BottomSheet>
+
+      {/* 텍스트 추출(Grab Text) 시트 */}
+      <BottomSheet open={ocrTarget !== null} onClose={() => setOcrTarget(null)} title="추출한 텍스트">
+        {ocrLoading ? (
+          <div className={styles.ocrLoading}>
+            <span className={styles.spinner} aria-hidden="true" />
+            <span>텍스트를 인식하고 있어요…</span>
+          </div>
+        ) : ocrError ? (
+          <p className={styles.ocrErrorText}>{ocrError}</p>
+        ) : ocrText !== null && ocrText.trim().length === 0 ? (
+          <p className={styles.ocrErrorText}>인식된 텍스트가 없어요.</p>
+        ) : (
+          <pre className={styles.ocrBox}>{ocrText ?? ''}</pre>
+        )}
+        <div className={styles.sheetActions}>
+          <Button
+            variant="secondary"
+            fullWidth
+            disabled={ocrLoading}
+            onClick={() => ocrTarget && recognizeText(ocrTarget, true)}
+          >
+            다시 인식해요
+          </Button>
+          <Button variant="primary" fullWidth disabled={ocrLoading || !ocrText?.trim()} onClick={copyOcrText}>
+            전체 복사해요
+          </Button>
+        </div>
+      </BottomSheet>
+
+      {/* 일괄 내보내기 시트 */}
+      <BottomSheet
+        open={batchSheetOpen}
+        onClose={() => {
+          if (!batchRunning) setBatchSheetOpen(false)
+        }}
+        title={`${selectedIds.size}개를 일괄 내보내요`}
+      >
+        <div className={styles.batchForm}>
+          <Input
+            label="리사이즈 폭 (px)"
+            type="number"
+            placeholder="비워 두면 원본 크기 그대로예요"
+            value={batchWidth}
+            onChange={(event) => setBatchWidth(event.target.value)}
+            min={1}
+          />
+          <div>
+            <div className={styles.batchLabel}>포맷</div>
+            <Segmented<BatchFormat>
+              aria-label="내보내기 포맷"
+              fullWidth
+              value={batchFormat}
+              onChange={setBatchFormat}
+              options={[
+                { value: 'png', label: 'PNG' },
+                { value: 'jpg', label: 'JPG' },
+                { value: 'webp', label: 'WebP' }
+              ]}
+            />
+          </div>
+          <Input
+            label="워터마크 텍스트"
+            placeholder="비워 두면 워터마크 없이 내보내요"
+            value={batchWatermark}
+            onChange={(event) => setBatchWatermark(event.target.value)}
+          />
+          <Button variant="primary" fullWidth loading={batchRunning} onClick={runBatchExport}>
+            내보내요
           </Button>
         </div>
       </BottomSheet>

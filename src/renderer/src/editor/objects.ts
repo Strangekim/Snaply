@@ -6,15 +6,24 @@ import { scalePoints } from './geometry'
 import type {
   AnnoObject,
   ArrowObj,
+  BlurMode,
+  BlurObj,
   CalloutObj,
   ColorId,
   EllipseObj,
+  FrameObj,
   HighlightObj,
+  ImageObj,
   LineObj,
+  MagnifyObj,
   PenObj,
   Point,
+  RectArea,
   RectObj,
   SizeLevel,
+  SpotlightObj,
+  StampKind,
+  StampObj,
   StepObj,
   StyleSettings,
   TextObj
@@ -36,6 +45,12 @@ export function strokeWidthFor(type: AnnoObject['type'], level: SizeLevel): numb
 export const HIGHLIGHT_OPACITY = 0.55
 export const CALLOUT_PADDING = 12
 export const CALLOUT_RADIUS = 12
+
+// Phase 3 프리셋
+export const BLUR_INTENSITY: Record<SizeLevel, number> = { S: 4, M: 8, L: 14 }
+export const STAMP_SIZE: Record<SizeLevel, number> = { S: 32, M: 48, L: 72 }
+export const MAGNIFY_DEFAULT_RADIUS = 60
+export const MAGNIFY_SCALES = [2, 3, 4] as const
 
 // ───────────── 팩토리 ─────────────
 
@@ -154,6 +169,89 @@ export function createStep(at: Point, value: number, style: StyleSettings): Step
   }
 }
 
+export function createBlur(start: Point, style: StyleSettings): BlurObj {
+  return {
+    ...base(start, style.color),
+    type: 'blur',
+    width: 0,
+    height: 0,
+    mode: style.blurMode ?? 'mosaic',
+    intensity: BLUR_INTENSITY[style.blurLevel ?? 'M']
+  }
+}
+
+/** 스마트 리댁션 등 — 영역이 미리 정해진 블러 객체 생성 */
+export function createBlurArea(rect: RectArea, mode: BlurMode, intensity: number): BlurObj {
+  return {
+    id: newId(),
+    x: rect.x,
+    y: rect.y,
+    rotation: 0,
+    color: 'black',
+    type: 'blur',
+    width: rect.width,
+    height: rect.height,
+    mode,
+    intensity
+  }
+}
+
+export function createSpotlight(start: Point, style: StyleSettings): SpotlightObj {
+  return {
+    ...base(start, style.color),
+    type: 'spotlight',
+    width: 0,
+    height: 0,
+    shape: style.spotlightShape ?? 'rect'
+  }
+}
+
+export function createMagnify(at: Point, style: StyleSettings): MagnifyObj {
+  return {
+    ...base(at, style.color),
+    type: 'magnify',
+    radius: MAGNIFY_DEFAULT_RADIUS,
+    scale: style.magnifyScale ?? 2
+  }
+}
+
+export function createStamp(at: Point, kind: StampKind, style: StyleSettings): StampObj {
+  return {
+    ...base(at, style.color),
+    type: 'stamp',
+    kind,
+    size: STAMP_SIZE[style.fontLevel]
+  }
+}
+
+export function createImage(at: Point, width: number, height: number, src: string): ImageObj {
+  return {
+    id: newId(),
+    x: at.x,
+    y: at.y,
+    rotation: 0,
+    color: 'black',
+    type: 'image',
+    width,
+    height,
+    src
+  }
+}
+
+export function createFrame(rect: RectArea, label: string): FrameObj {
+  return {
+    id: newId(),
+    x: rect.x,
+    y: rect.y,
+    rotation: 0,
+    color: 'black',
+    type: 'frame',
+    width: rect.width,
+    height: rect.height,
+    label
+  }
+}
+
 // ───────────── 갱신 헬퍼 ─────────────
 
 /** 드래그 중 도형 크기 갱신 (draft 전용) */
@@ -167,6 +265,8 @@ export function resizeDraft(obj: AnnoObject, start: Point, current: Point): Anno
     case 'rect':
     case 'ellipse':
     case 'callout':
+    case 'blur':
+    case 'spotlight':
       return {
         ...obj,
         x: Math.min(start.x, current.x),
@@ -199,6 +299,8 @@ export function isDraftMeaningful(obj: AnnoObject): boolean {
     case 'rect':
     case 'ellipse':
     case 'callout':
+    case 'blur':
+    case 'spotlight':
       return obj.width >= 4 && obj.height >= 4
     case 'highlight':
     case 'pen':
@@ -232,6 +334,10 @@ export function bakeTransform(obj: AnnoObject, t: NodeTransform): AnnoObject {
   switch (moved.type) {
     case 'rect':
     case 'ellipse':
+    case 'blur':
+    case 'spotlight':
+    case 'image':
+    case 'frame':
       return {
         ...moved,
         width: Math.max(4, moved.width * t.scaleX),
@@ -249,6 +355,10 @@ export function bakeTransform(obj: AnnoObject, t: NodeTransform): AnnoObject {
       return { ...moved, fontSize: Math.max(8, moved.fontSize * t.scaleY) }
     case 'step':
       return { ...moved, radius: Math.max(6, moved.radius * Math.max(t.scaleX, t.scaleY)) }
+    case 'magnify':
+      return { ...moved, radius: Math.max(16, moved.radius * Math.max(t.scaleX, t.scaleY)) }
+    case 'stamp':
+      return { ...moved, size: Math.max(12, moved.size * Math.max(t.scaleX, t.scaleY)) }
     case 'arrow':
     case 'line':
     case 'highlight':
@@ -276,6 +386,8 @@ export function applyStylePatch(obj: AnnoObject, patch: Partial<StyleSettings>):
       next = { ...next, fontSize: FONT_SIZE[patch.fontLevel] }
     } else if (next.type === 'step') {
       next = { ...next, radius: STEP_RADIUS[patch.fontLevel] }
+    } else if (next.type === 'stamp') {
+      next = { ...next, size: STAMP_SIZE[patch.fontLevel] }
     }
   }
   if (patch.headLevel !== undefined && next.type === 'arrow') {
@@ -284,6 +396,18 @@ export function applyStylePatch(obj: AnnoObject, patch: Partial<StyleSettings>):
   if (patch.fillEnabled !== undefined && (next.type === 'rect' || next.type === 'ellipse')) {
     next = { ...next, fillEnabled: patch.fillEnabled }
   }
+  if (patch.blurMode !== undefined && next.type === 'blur') {
+    next = { ...next, mode: patch.blurMode }
+  }
+  if (patch.blurLevel !== undefined && next.type === 'blur') {
+    next = { ...next, intensity: BLUR_INTENSITY[patch.blurLevel] }
+  }
+  if (patch.spotlightShape !== undefined && next.type === 'spotlight') {
+    next = { ...next, shape: patch.spotlightShape }
+  }
+  if (patch.magnifyScale !== undefined && next.type === 'magnify') {
+    next = { ...next, scale: patch.magnifyScale }
+  }
   return next
 }
 
@@ -291,4 +415,82 @@ export function applyStylePatch(obj: AnnoObject, patch: Partial<StyleSettings>):
 export function baseName(filePath: string): string {
   const parts = filePath.split(/[\\/]/)
   return parts[parts.length - 1] || filePath
+}
+
+// ───────────── 경계 상자 (마키 다중 선택용) ─────────────
+
+/** 객체의 로컬(원점 기준) 경계 [x0, y0, x1, y1] */
+function localExtents(obj: AnnoObject): [number, number, number, number] {
+  switch (obj.type) {
+    case 'arrow':
+    case 'line':
+    case 'highlight':
+    case 'pen': {
+      let x0 = Infinity
+      let y0 = Infinity
+      let x1 = -Infinity
+      let y1 = -Infinity
+      for (let i = 0; i + 1 < obj.points.length; i += 2) {
+        x0 = Math.min(x0, obj.points[i])
+        x1 = Math.max(x1, obj.points[i])
+        y0 = Math.min(y0, obj.points[i + 1])
+        y1 = Math.max(y1, obj.points[i + 1])
+      }
+      if (!Number.isFinite(x0)) return [0, 0, 0, 0]
+      return [x0, y0, x1, y1]
+    }
+    case 'rect':
+    case 'ellipse':
+    case 'callout':
+    case 'blur':
+    case 'spotlight':
+    case 'image':
+    case 'frame':
+      return [0, 0, obj.width, obj.height]
+    case 'text': {
+      // 대략치 — 마키 교차 판정 용도로 충분
+      const w = Math.max(24, obj.text.length * obj.fontSize * 0.6)
+      return [0, 0, w, obj.fontSize * 1.3]
+    }
+    case 'step':
+      return [-obj.radius, -obj.radius, obj.radius, obj.radius]
+    case 'magnify':
+      return [-obj.radius, -obj.radius, obj.radius, obj.radius]
+    case 'stamp':
+      return [-obj.size / 2, -obj.size / 2, obj.size / 2, obj.size / 2]
+  }
+}
+
+/** 회전을 반영한 객체의 문서 좌표계 AABB */
+export function objectBounds(obj: AnnoObject): RectArea {
+  const [x0, y0, x1, y1] = localExtents(obj)
+  const rad = ((obj.rotation || 0) * Math.PI) / 180
+  const cos = Math.cos(rad)
+  const sin = Math.sin(rad)
+  const corners: Point[] = [
+    { x: x0, y: y0 },
+    { x: x1, y: y0 },
+    { x: x1, y: y1 },
+    { x: x0, y: y1 }
+  ]
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  for (const c of corners) {
+    const rx = obj.x + c.x * cos - c.y * sin
+    const ry = obj.y + c.x * sin + c.y * cos
+    minX = Math.min(minX, rx)
+    minY = Math.min(minY, ry)
+    maxX = Math.max(maxX, rx)
+    maxY = Math.max(maxY, ry)
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+}
+
+/** 두 사각형이 겹치는지 */
+export function rectsIntersect(a: RectArea, b: RectArea): boolean {
+  return (
+    a.x <= b.x + b.width && b.x <= a.x + a.width && a.y <= b.y + b.height && b.y <= a.y + a.height
+  )
 }

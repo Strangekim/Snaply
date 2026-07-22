@@ -33,8 +33,9 @@ interface Frame {
 
 async function grabAllDisplayFrames(): Promise<Frame[]> {
   const displays = screen.getAllDisplays()
-  const maxW = Math.max(...displays.map((d) => d.bounds.width * d.scaleFactor))
-  const maxH = Math.max(...displays.map((d) => d.bounds.height * d.scaleFactor))
+  // thumbnailSize는 정수여야 한다 — scaleFactor 1.5 × 홀수 해상도면 비정수가 되어 getSources가 throw
+  const maxW = Math.round(Math.max(...displays.map((d) => d.bounds.width * d.scaleFactor)))
+  const maxH = Math.round(Math.max(...displays.map((d) => d.bounds.height * d.scaleFactor)))
   const sources = await desktopCapturer.getSources({
     types: ['screen'],
     thumbnailSize: { width: maxW, height: maxH }
@@ -211,7 +212,8 @@ async function afterCapture(result: CaptureResult, options?: CaptureOptions): Pr
 // ─────────────── IPC 등록 ───────────────
 
 export function registerCaptureIpc(): void {
-  handle('capture:start', (options) => void startCapture(options))
+  // 에러를 삼키지 않고 IPC reject로 전달한다 (렌더러가 실패를 알 수 있게)
+  handle('capture:start', (options) => startCapture(options))
   handle('capture:cancel', () => {
     if (pendingTimer) {
       clearTimeout(pendingTimer)

@@ -17,8 +17,13 @@ export const stageRegistry: {
  * 현재 문서를 PNG dataURL로 평탄화한다.
  * 문서 좌표계 = 원본 픽셀 좌표계이므로 pixelRatio 1로 원본 해상도가 유지된다.
  * 줌/팬/뷰포트 크기와 무관하게 (0,0)~(docWidth,docHeight)를 렌더한다.
+ * padding > 0이면 문서 주변 여백까지 포함한다 (그림자 효과가 잘리지 않도록).
  */
-export function flattenToDataUrl(docWidth: number, docHeight: number): string | null {
+export function flattenToDataUrl(
+  docWidth: number,
+  docHeight: number,
+  padding = 0
+): string | null {
   const stage = stageRegistry.stage
   if (!stage || docWidth <= 0 || docHeight <= 0) return null
 
@@ -27,17 +32,19 @@ export function flattenToDataUrl(docWidth: number, docHeight: number): string | 
   const prevPos = { x: stage.x(), y: stage.y() }
   const prevSize = { width: stage.width(), height: stage.height() }
   const uiWasVisible = ui?.visible() ?? false
+  const outW = docWidth + padding * 2
+  const outH = docHeight + padding * 2
 
   try {
     ui?.visible(false)
     stage.scale({ x: 1, y: 1 })
-    stage.position({ x: 0, y: 0 })
-    stage.size({ width: docWidth, height: docHeight })
+    stage.position({ x: padding, y: padding })
+    stage.size({ width: outW, height: outH })
     return stage.toDataURL({
       x: 0,
       y: 0,
-      width: docWidth,
-      height: docHeight,
+      width: outW,
+      height: outH,
       pixelRatio: 1,
       mimeType: 'image/png'
     })

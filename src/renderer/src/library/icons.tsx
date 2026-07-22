@@ -118,6 +118,40 @@ export function PlusIcon({ size = 14 }: IconProps): JSX.Element {
   )
 }
 
+export function TextScanIcon({ size = 16 }: IconProps): JSX.Element {
+  return (
+    <svg {...svgProps(size)} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
+      <path d="M8.5 9.5V8.5h7v1M12 8.5V16M10.5 16h3" />
+    </svg>
+  )
+}
+
+export function PlayIcon({ size = 16 }: IconProps): JSX.Element {
+  return (
+    <svg {...svgProps(size)} fill="currentColor" stroke="none">
+      <path d="M8.5 5.8a1 1 0 0 1 1.5-.86l9 5.2a1 1 0 0 1 0 1.72l-9 5.2a1 1 0 0 1-1.5-.86V5.8z" />
+    </svg>
+  )
+}
+
+export function CheckIcon({ size = 14 }: IconProps): JSX.Element {
+  return (
+    <svg {...svgProps(size)} fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </svg>
+  )
+}
+
+export function FilmIcon({ size = 16 }: IconProps): JSX.Element {
+  return (
+    <svg {...svgProps(size)} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
+      <rect x="3.5" y="5" width="17" height="14" rx="2" />
+      <path d="M7.5 5v14M16.5 5v14M3.5 9h4M3.5 15h4M16.5 9h4M16.5 15h4" />
+    </svg>
+  )
+}
+
 export function CameraIcon({ size = 16 }: IconProps): JSX.Element {
   return (
     <svg {...svgProps(size)} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">

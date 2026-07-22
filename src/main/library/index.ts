@@ -21,7 +21,9 @@ import {
   listItems,
   updateItem
 } from './db'
-import type { CaptureMode, CaptureResult, LibraryItem } from '@shared/ipc'
+import { registerOcrIpc, runOcr } from './ocr'
+import { registerBatchExportIpc } from './batch'
+import type { CaptureMode, CaptureResult, LibraryItem, RecordResult } from '@shared/ipc'
 
 // ───────────────────────── 자동 태깅 ─────────────────────────
 
@@ -110,6 +112,75 @@ function saveCaptureToLibrary(result: CaptureResult): void {
   broadcast('event:libraryChanged', undefined)
 }
 
+// ───────────────────────── 캡처 자동 OCR 인덱싱 ─────────────────────────
+// 캡처 저장 직후 2초 디바운스 큐에 모았다가 백그라운드로 OCR을 돌려 ocr_text를 채운다.
+// (updateItem이 FTS를 재동기화하므로 검색에 바로 반영된다. 실패는 조용히 무시.)
+// TODO(Phase 4): 설정에서 자동 OCR 끄는 옵션 추가
+
+const OCR_DEBOUNCE_MS = 2000
+const ocrPending: string[] = []
+let ocrTimer: NodeJS.Timeout | null = null
+let ocrDraining = false
+
+function scheduleOcrIndexing(itemId: string): void {
+  if (!ocrPending.includes(itemId)) ocrPending.push(itemId)
+  if (ocrTimer) clearTimeout(ocrTimer)
+  ocrTimer = setTimeout(() => {
+    ocrTimer = null
+    void drainOcrQueue()
+  }, OCR_DEBOUNCE_MS)
+}
+
+async function drainOcrQueue(): Promise<void> {
+  if (ocrDraining) return
+  ocrDraining = true
+  try {
+    while (ocrPending.length > 0) {
+      const id = ocrPending.shift()
+      if (!id) continue
+      const item = getItem(id)
+      // 이미 인식했거나 이미지가 아니면 건너뜀
+      if (!item || item.kind !== 'image' || item.ocrText) continue
+      try {
+        const result = await runOcr({ source: item.filePath })
+        if (result.text) {
+          updateItem(id, { ocrText: result.text })
+          broadcast('event:libraryChanged', undefined)
+        }
+      } catch (err) {
+        console.warn('[library] 자동 OCR 실패(무시):', err)
+      }
+    }
+  } finally {
+    ocrDraining = false
+  }
+}
+
+// ───────────────────────── 녹화 결과 등록 ─────────────────────────
+
+function saveRecordingToLibrary(result: RecordResult): void {
+  const kind = result.format === 'gif' ? 'gif' : 'video'
+  const createdAt = Date.now()
+  const item: LibraryItem = {
+    id: result.id,
+    filePath: result.filePath,
+    // gif는 nativeImage가 첫 프레임을 읽을 수 있어 썸네일 시도, 실패하면 카드에서 원본 표시.
+    // TODO(Phase 4): video(mp4/webm) 썸네일 — ffmpeg로 첫 프레임 추출
+    thumbPath: kind === 'gif' ? createThumbnail(result.id, result.filePath) : undefined,
+    kind,
+    // 녹화 해상도는 ffprobe 없이 알 수 없어 0으로 저장 (계약상 허용)
+    width: 0,
+    height: 0,
+    createdAt,
+    tags: [dateTag(createdAt), '녹화'],
+    pinned: false,
+    favorite: false,
+    fileSize: safeFileSize(result.filePath)
+  }
+  insertItem(item)
+  broadcast('event:libraryChanged', undefined)
+}
+
 // ───────────────────────── 편집 결과 저장 ─────────────────────────
 
 /** `{원본이름}-edited-N.png` 형태로 겹치지 않는 새 경로를 찾는다 */
@@ -180,8 +251,17 @@ export function registerLibraryIpc(): void {
   bus.on('captureCompleted', (result) => {
     try {
       saveCaptureToLibrary(result)
+      scheduleOcrIndexing(result.id)
     } catch (err) {
       console.error('[library] 캡처 자동 저장 실패:', err)
+    }
+  })
+
+  bus.on('recordCompleted', (result) => {
+    try {
+      saveRecordingToLibrary(result)
+    } catch (err) {
+      console.error('[library] 녹화 결과 등록 실패:', err)
     }
   })
 
@@ -219,4 +299,7 @@ export function registerLibraryIpc(): void {
   })
 
   handle('library:saveEdited', (req) => saveEdited(req))
+
+  registerOcrIpc()
+  registerBatchExportIpc()
 }

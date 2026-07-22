@@ -13,18 +13,22 @@ import {
   type History
 } from './history'
 import { composeCrop } from './geometry'
+import { normalizeEffects } from './effects'
 import {
   applyStylePatch,
   baseName,
   cloneObject,
+  createImage,
   createStep,
   translateObject
 } from './objects'
 import type {
   AnnoObject,
   EditorDoc,
+  ImageEffects,
   Point,
   RectArea,
+  StampKind,
   StyleSettings,
   ToolId
 } from './types'
@@ -36,8 +40,15 @@ const DEFAULT_STYLE: StyleSettings = {
   strokeLevel: 'M',
   fontLevel: 'M',
   headLevel: 'M',
-  fillEnabled: false
+  fillEnabled: false,
+  blurMode: 'mosaic',
+  blurLevel: 'M',
+  spotlightShape: 'rect',
+  magnifyScale: 2
 }
+
+/** 앱바/툴바에서 여는 바텀시트 종류 */
+export type EditorSheet = 'stamps' | 'effects' | 'templates' | null
 
 export interface EditorState {
   // 문서 소스
@@ -58,9 +69,22 @@ export interface EditorState {
   pan: Point
   editingTextId: string | null
   clipboard: AnnoObject[]
+  /** 스탬프 도구가 배치할 스탬프 종류 */
+  stampKind: StampKind
+  /** 현재 열린 바텀시트 */
+  sheet: EditorSheet
 
   // 액션
   openDocument: (args: { itemId: string; filePath: string; imageUrl: string; width: number; height: number }) => void
+  /** 템플릿 등 파일 기반이 아닌 새 문서 열기 */
+  openGeneratedDoc: (args: {
+    fileName: string
+    imageUrl: string
+    width: number
+    height: number
+    objects?: AnnoObject[]
+    stepCounter?: number
+  }) => void
   setTool: (tool: ToolId) => void
   setZoomPan: (zoom: number, pan: Point) => void
   setPan: (pan: Point) => void
@@ -69,7 +93,12 @@ export interface EditorState {
   clearSelection: () => void
   setEditingText: (id: string | null) => void
 
+  setStampKind: (kind: StampKind) => void
+  setSheet: (sheet: EditorSheet) => void
+
   addObject: (obj: AnnoObject, select?: boolean) => void
+  /** 여러 객체를 한 번의 커밋으로 추가 (undo 한 번에 되돌려짐) */
+  addObjects: (objs: AnnoObject[], select?: boolean) => void
   addStep: (at: Point) => void
   resetStepCounter: () => void
   updateObject: (id: string, updater: (obj: AnnoObject) => AnnoObject) => void
@@ -80,7 +109,13 @@ export interface EditorState {
   copySelection: () => void
   paste: () => void
   applyStyle: (patch: Partial<StyleSettings>) => void
+  /** 선택 객체와 같은 종류 전체에 현재 스타일을 적용 (한 번의 커밋) */
+  applyStyleToSameType: () => void
   applyCrop: (rect: RectArea) => void
+  /** 문서 전체 효과 갱신 (undo 가능) */
+  updateEffects: (patch: Partial<ImageEffects>) => void
+  /** 클립보드 이미지 붙여넣기 — 선택된 프레임이 있으면 그 안에 맞춤 */
+  pasteImage: (src: string, width: number, height: number) => void
 
   undo: () => void
   redo: () => void
@@ -122,6 +157,8 @@ export const useEditorStore = create<EditorState>()((set, get) => {
     pan: { x: 0, y: 0 },
     editingTextId: null,
     clipboard: [],
+    stampKind: 'check',
+    sheet: null,
 
     openDocument: ({ itemId, filePath, imageUrl, width, height }) =>
       set({
@@ -136,6 +173,23 @@ export const useEditorStore = create<EditorState>()((set, get) => {
         editingTextId: null,
         clipboard: []
       }),
+
+    openGeneratedDoc: ({ fileName, imageUrl, width, height, objects = [], stepCounter = 0 }) =>
+      set({
+        itemId: null,
+        fileName,
+        imageUrl,
+        imageWidth: width,
+        imageHeight: height,
+        history: createHistory({ objects, crop: null, stepCounter }),
+        selectedIds: [],
+        activeTool: 'select',
+        editingTextId: null,
+        clipboard: []
+      }),
+
+    setStampKind: (kind) => set({ stampKind: kind, activeTool: 'stamp' }),
+    setSheet: (sheet) => set({ sheet }),
 
     setTool: (tool) =>
       set((s) => ({
@@ -161,6 +215,13 @@ export const useEditorStore = create<EditorState>()((set, get) => {
       const d = doc()
       commitDoc({ ...d, objects: [...d.objects, obj] })
       if (select) set({ selectedIds: [obj.id] })
+    },
+
+    addObjects: (objs, select = true) => {
+      if (objs.length === 0) return
+      const d = doc()
+      commitDoc({ ...d, objects: [...d.objects, ...objs] })
+      if (select) set({ selectedIds: objs.map((o) => o.id) })
     },
 
     addStep: (at) => {
@@ -248,6 +309,52 @@ export const useEditorStore = create<EditorState>()((set, get) => {
       if (selectedIds.length > 0) {
         get().updateObjects(selectedIds, (o) => applyStylePatch(o, patch))
       }
+    },
+
+    applyStyleToSameType: () => {
+      const { selectedIds, style } = get()
+      if (selectedIds.length === 0) return
+      const d = doc()
+      const idSet = new Set(selectedIds)
+      const types = new Set(d.objects.filter((o) => idSet.has(o.id)).map((o) => o.type))
+      if (types.size === 0) return
+      const targetIds = d.objects.filter((o) => types.has(o.type)).map((o) => o.id)
+      get().updateObjects(targetIds, (o) => applyStylePatch(o, style))
+    },
+
+    updateEffects: (patch) => {
+      const d = doc()
+      commitDoc({ ...d, effects: { ...normalizeEffects(d.effects), ...patch } })
+    },
+
+    pasteImage: (src, width, height) => {
+      const s = get()
+      if (!s.imageUrl || width <= 0 || height <= 0) return
+      const d = doc()
+      const { width: docW, height: docH } = docSize(s)
+      const selected = new Set(s.selectedIds)
+      const frame = d.objects.find((o) => o.type === 'frame' && selected.has(o.id))
+      let obj: AnnoObject
+      if (frame && frame.type === 'frame') {
+        // 프레임 안에 맞춤 (contain + 중앙 정렬)
+        const scale = Math.min(frame.width / width, frame.height / height)
+        const w = width * scale
+        const h = height * scale
+        obj = createImage(
+          { x: frame.x + (frame.width - w) / 2, y: frame.y + (frame.height - h) / 2 },
+          w,
+          h,
+          src
+        )
+      } else {
+        // 문서 중앙, 문서보다 크면 80%로 축소
+        const scale = Math.min(1, (docW * 0.8) / width, (docH * 0.8) / height)
+        const w = width * scale
+        const h = height * scale
+        obj = createImage({ x: (docW - w) / 2, y: (docH - h) / 2 }, w, h, src)
+      }
+      commitDoc({ ...d, objects: [...d.objects, obj] })
+      set({ selectedIds: [obj.id] })
     },
 
     applyCrop: (rect) => {

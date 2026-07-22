@@ -1,18 +1,33 @@
 /**
  * Snaply 에디터 창 — Konva 기반 객체 주석 에디터. 소유자: Editor.
  */
-import { useCallback, useEffect, type JSX } from 'react'
+import { useCallback, useEffect, useState, type JSX } from 'react'
 import { Button, ToastProvider, useToast } from '@ds/index'
 import { useTheme } from '../common/useTheme'
 import styles from './editor.module.css'
 import { docSize, useEditorStore } from './store'
 import { canRedo, canUndo } from './history'
 import { flattenToDataUrl } from './stageRegistry'
+import { flattenPadding } from './effects'
+import { bboxToDocRect, findSensitiveWords } from './redaction'
+import { createBlurArea, BLUR_INTENSITY } from './objects'
 import { Toolbar } from './Toolbar'
 import { PropertyPanel } from './PropertyPanel'
 import { CanvasStage } from './CanvasStage'
+import { StampPicker } from './StampPicker'
+import { EffectsSheet } from './EffectsSheet'
+import { TemplateSheet } from './TemplateSheet'
 import { useEditorShortcuts } from './useEditorShortcuts'
-import { IconCopy, IconRedo, IconSave, IconUndo } from './icons'
+import {
+  IconCopy,
+  IconRedo,
+  IconSave,
+  IconShield,
+  IconSparkle,
+  IconTemplate,
+  IconUndo
+} from './icons'
+import type { BlurObj } from './types'
 
 function EditorShell(): JSX.Element {
   const { toast } = useToast()
@@ -23,6 +38,8 @@ function EditorShell(): JSX.Element {
   const undo = useEditorStore((s) => s.undo)
   const redo = useEditorStore((s) => s.redo)
   const openDocument = useEditorStore((s) => s.openDocument)
+  const setSheet = useEditorStore((s) => s.setSheet)
+  const [redacting, setRedacting] = useState(false)
 
   // 캡처 → 에디터로 열기
   useEffect(() => {
@@ -58,7 +75,7 @@ function EditorShell(): JSX.Element {
     s.setEditingText(null)
     s.clearSelection()
     const { width, height } = docSize(s)
-    return flattenToDataUrl(width, height)
+    return flattenToDataUrl(width, height, flattenPadding(s.history.present.effects))
   }, [])
 
   const handleSave = useCallback((): void => {
@@ -83,6 +100,34 @@ function EditorShell(): JSX.Element {
       .then(() => toast('복사했어요'))
       .catch(() => toast('복사에 실패했어요', { type: 'error' }))
   }, [flatten, toast])
+
+  /** 스마트 리댁션 — OCR로 민감정보를 찾아 모자이크 객체 자동 생성 */
+  const handleRedact = useCallback((): void => {
+    const s = useEditorStore.getState()
+    if (!s.imageUrl || redacting) return
+    setRedacting(true)
+    void window.snaply
+      .invoke('ocr:run', { source: s.imageUrl, languages: 'kor+eng' })
+      .then((result) => {
+        const state = useEditorStore.getState()
+        const { width: docW, height: docH } = docSize(state)
+        const crop = state.history.present.crop
+        const matches = findSensitiveWords(result.words)
+        const blurs: BlurObj[] = []
+        for (const m of matches) {
+          const rect = bboxToDocRect(m.bbox, crop, docW, docH)
+          if (rect) blurs.push(createBlurArea(rect, 'mosaic', BLUR_INTENSITY.M))
+        }
+        if (blurs.length === 0) {
+          toast('민감한 정보를 찾지 못했어요')
+          return
+        }
+        state.addObjects(blurs)
+        toast(`${blurs.length}건 가렸어요`)
+      })
+      .catch(() => toast('민감정보 인식에 실패했어요', { type: 'error' }))
+      .finally(() => setRedacting(false))
+  }, [redacting, toast])
 
   useEditorShortcuts({ onSave: handleSave, onCopyImage: handleCopyImage })
 
@@ -112,6 +157,35 @@ function EditorShell(): JSX.Element {
           <IconRedo />
         </button>
         <span className={styles.zoomBadge}>{Math.round(zoom * 100)}%</span>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={!imageUrl || redacting}
+          onClick={handleRedact}
+          title="OCR로 이메일·전화번호·카드번호·주민번호를 찾아 모자이크 처리해요"
+        >
+          <IconShield size={16} />
+          &nbsp;{redacting ? '찾는 중...' : '민감정보 가리기'}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={!imageUrl}
+          onClick={() => setSheet('effects')}
+          title="테두리·그림자·라운드·찢어진 가장자리"
+        >
+          <IconSparkle size={16} />
+          &nbsp;효과
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setSheet('templates')}
+          title="비교·튜토리얼·타임라인 템플릿으로 새 문서"
+        >
+          <IconTemplate size={16} />
+          &nbsp;템플릿
+        </Button>
         <Button
           variant="secondary"
           size="sm"
@@ -146,6 +220,10 @@ function EditorShell(): JSX.Element {
           </div>
         )}
       </div>
+
+      <StampPicker />
+      <EffectsSheet />
+      <TemplateSheet />
     </div>
   )
 }

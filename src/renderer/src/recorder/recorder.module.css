@@ -1,0 +1,446 @@
+/* Recorder 창 스타일. 소유자: Recorder. 토큰만 사용 (하드코딩 색상 금지 — 단, 오버레이 토큰은 예외적으로 다크 고정) */
+
+/* ─────────── 공통 레이아웃 ─────────── */
+
+.fill {
+  width: 100%;
+  height: 100%;
+}
+
+/* ─────────── 설정 카드 ─────────── */
+
+.panelRoot {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: var(--space-3);
+}
+
+.card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  overflow-y: auto;
+  box-shadow: var(--shadow-float) !important;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  -webkit-app-region: drag;
+}
+
+.cardTitle {
+  font-size: var(--text-h2);
+  font-weight: 700;
+  color: var(--text-title);
+  margin: 0;
+}
+
+.iconButton {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--radius-button);
+  background: transparent;
+  color: var(--text-sub);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.iconButton:hover {
+  background: var(--bg-hover);
+  color: var(--text-body);
+}
+
+.fieldLabel {
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--text-sub);
+  margin-bottom: var(--space-2);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-divider);
+}
+
+.toggleRow:last-of-type {
+  border-bottom: none;
+}
+
+.toggleLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-body);
+}
+
+.toggleLabel svg {
+  color: var(--text-sub);
+}
+
+.startArea {
+  margin-top: auto;
+  padding-top: var(--space-2);
+}
+
+/* ─────────── 영역 선택 (투명 풀스크린) ─────────── */
+
+.selectRoot {
+  position: fixed;
+  inset: 0;
+  cursor: crosshair;
+  overflow: hidden;
+}
+
+.selectHint {
+  position: absolute;
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-capsule);
+  background: var(--overlay-glass);
+  border: 1px solid var(--overlay-glass-border);
+  color: var(--overlay-text);
+  font-size: var(--text-body-size);
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.selectDim {
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-dim);
+}
+
+.selectionBox {
+  position: absolute;
+  border: 2px solid var(--primary);
+  background: transparent;
+  /* 거대한 그림자로 선택 영역 밖만 딤 처리 */
+  box-shadow: 0 0 0 100000px var(--overlay-dim);
+}
+
+.selectionSize {
+  position: absolute;
+  padding: 2px var(--space-2);
+  border-radius: 6px;
+  background: var(--overlay-glass);
+  color: var(--overlay-text);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ─────────── 카운트다운 ─────────── */
+
+.countdownRoot {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--overlay-dim);
+}
+
+.countdownNumber {
+  font-size: 200px;
+  font-weight: 800;
+  color: var(--overlay-text);
+  text-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
+  animation: countPop 1s ease-out both;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes countPop {
+  0% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+  25% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  85% {
+    transform: scale(0.96);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0.4;
+  }
+}
+
+/* ─────────── 녹화 중 컨트롤 캡슐 ─────────── */
+
+.capsule {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-capsule);
+  background: var(--overlay-glass);
+  border: 1px solid var(--overlay-glass-border);
+  color: var(--overlay-text);
+  backdrop-filter: blur(12px);
+  -webkit-app-region: drag;
+}
+
+.recDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--red-500);
+  flex-shrink: 0;
+  animation: recPulse 1.4s ease-in-out infinite;
+}
+
+.recDotPaused {
+  animation: none;
+  background: var(--yellow-500);
+}
+
+@keyframes recPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.elapsed {
+  font-size: var(--text-section);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  min-width: 62px;
+}
+
+.capsuleSpacer {
+  flex: 1;
+}
+
+.capsuleButton {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--overlay-text);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.capsuleButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.stopButton {
+  background: var(--red-500);
+  color: var(--white);
+}
+
+.stopButton:hover {
+  background: var(--red-500);
+  opacity: 0.85;
+}
+
+/* ─────────── 트리밍 프리뷰 ─────────── */
+
+.previewVideoWrap {
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--grey-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+}
+
+.previewVideo {
+  width: 100%;
+  max-height: 300px;
+  display: block;
+}
+
+.previewPlayBadge {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--overlay-text);
+  background: rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.trimArea {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.trimTrack {
+  position: relative;
+  height: 28px;
+}
+
+.trimRange {
+  -webkit-appearance: none;
+  appearance: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  background: transparent;
+  pointer-events: none;
+  margin: 0;
+}
+
+.trimRange::-webkit-slider-runnable-track {
+  height: 6px;
+  margin-top: 11px;
+  border-radius: var(--radius-capsule);
+  background: transparent;
+}
+
+.trimRange::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: auto;
+  width: 18px;
+  height: 18px;
+  margin-top: -6px;
+  border-radius: 50%;
+  background: var(--white);
+  border: 2.5px solid var(--primary);
+  box-shadow: var(--shadow-card);
+  cursor: ew-resize;
+}
+
+.trimRail {
+  position: absolute;
+  top: 11px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  border-radius: var(--radius-capsule);
+  background: var(--bg-input);
+}
+
+.trimFill {
+  position: absolute;
+  top: 11px;
+  height: 6px;
+  border-radius: var(--radius-capsule);
+  background: var(--primary);
+}
+
+.trimLabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-caption);
+  color: var(--text-sub);
+  font-variant-numeric: tabular-nums;
+}
+
+.previewActions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: auto;
+}
+
+.previewActions > * {
+  flex: 1;
+}
+
+/* ─────────── 완료 화면 ─────────── */
+
+.doneRoot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  flex: 1;
+  text-align: center;
+}
+
+.doneIcon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--green-50);
+  color: var(--success);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doneTitle {
+  font-size: var(--text-h2);
+  font-weight: 700;
+  color: var(--text-title);
+  margin: 0;
+}
+
+.donePath {
+  font-size: var(--text-caption);
+  color: var(--text-sub);
+  word-break: break-all;
+  max-width: 320px;
+  user-select: text;
+}
+
+/* ─────────── 처리 중 스피너 ─────────── */
+
+.processingRoot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  flex: 1;
+  color: var(--text-sub);
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid var(--bg-input);
+  border-top-color: var(--primary);
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

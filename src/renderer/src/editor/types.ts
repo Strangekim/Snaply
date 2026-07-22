@@ -14,6 +14,10 @@ export type ToolId =
   | 'highlighter'
   | 'pen'
   | 'step'
+  | 'blur'
+  | 'spotlight'
+  | 'magnify'
+  | 'stamp'
   | 'crop'
 
 /** 토큰 팔레트 색상 id — 실제 값은 tokens.css 변수에서 resolve */
@@ -108,6 +112,76 @@ export interface StepObj extends ObjBase {
   radius: number
 }
 
+// ───────────── Phase 3 객체 ─────────────
+
+export type BlurMode = 'blur' | 'mosaic'
+
+/** 배경 이미지의 사각 영역을 블러/모자이크 처리 */
+export interface BlurObj extends ObjBase {
+  type: 'blur'
+  width: number
+  height: number
+  mode: BlurMode
+  /** 강도(px) — blur는 blur 반경, mosaic은 intensity*2가 블록 크기 */
+  intensity: number
+}
+
+export type SpotlightShape = 'rect' | 'ellipse'
+
+/** 영역 밖을 어둡게 하는 스포트라이트 (딤은 문서당 한 번만 렌더) */
+export interface SpotlightObj extends ObjBase {
+  type: 'spotlight'
+  width: number
+  height: number
+  shape: SpotlightShape
+}
+
+/** 배경 이미지를 확대해 보여주는 원형 돋보기 렌즈 — x,y가 중심 */
+export interface MagnifyObj extends ObjBase {
+  type: 'magnify'
+  radius: number
+  /** 확대 배율 (2~4) */
+  scale: number
+}
+
+export type StampKind =
+  | 'check'
+  | 'cross'
+  | 'cursor'
+  | 'question'
+  | 'exclamation'
+  | 'star'
+  | 'heart'
+  | 'badge-1'
+  | 'badge-2'
+  | 'badge-3'
+  | 'face-smile'
+  | 'face-neutral'
+  | 'face-frown'
+
+/** SVG 스탬프 — x,y가 중심, size는 렌더 한 변 길이(px) */
+export interface StampObj extends ObjBase {
+  type: 'stamp'
+  kind: StampKind
+  size: number
+}
+
+/** 붙여넣은 이미지 (dataURL) */
+export interface ImageObj extends ObjBase {
+  type: 'image'
+  width: number
+  height: number
+  src: string
+}
+
+/** 템플릿 가이드 프레임 — 이미지를 붙여넣을 자리 표시 */
+export interface FrameObj extends ObjBase {
+  type: 'frame'
+  width: number
+  height: number
+  label: string
+}
+
 export type AnnoObject =
   | ArrowObj
   | LineObj
@@ -118,8 +192,24 @@ export type AnnoObject =
   | HighlightObj
   | PenObj
   | StepObj
+  | BlurObj
+  | SpotlightObj
+  | MagnifyObj
+  | StampObj
+  | ImageObj
+  | FrameObj
 
 export type AnnoType = AnnoObject['type']
+
+/** 문서 전체 이미지 효과 (Phase 3) */
+export interface ImageEffects {
+  border: { enabled: boolean; color: ColorId; width: number }
+  shadow: { enabled: boolean }
+  /** 모서리 라운드 반경(px). 0이면 없음 */
+  cornerRadius: number
+  /** 찢어진 가장자리 — 방향별 선택 */
+  torn: { top: boolean; bottom: boolean; left: boolean; right: boolean }
+}
 
 /** 히스토리에 스냅샷으로 저장되는 문서 상태 */
 export interface EditorDoc {
@@ -128,6 +218,8 @@ export interface EditorDoc {
   crop: RectArea | null
   /** 스텝 넘버 카운터 — 다음 생성 값은 stepCounter + 1 */
   stepCounter: number
+  /** 문서 전체 효과 — 미지정이면 효과 없음 (기존 문서 호환) */
+  effects?: ImageEffects
 }
 
 /** 새 객체 생성 시 사용할 기본 스타일 (속성 패널과 연동) */
@@ -137,4 +229,9 @@ export interface StyleSettings {
   fontLevel: SizeLevel
   headLevel: SizeLevel
   fillEnabled: boolean
+  /** Phase 3 — 선택적(기존 API 호환): 블러/스포트라이트/돋보기 기본값 */
+  blurMode?: BlurMode
+  blurLevel?: SizeLevel
+  spotlightShape?: SpotlightShape
+  magnifyScale?: number
 }

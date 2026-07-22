@@ -7,6 +7,7 @@ import { broadcast, getWindow, sendTo, showWindow } from './windows'
 import { registerCaptureIpc } from './capture'
 import { registerLibraryIpc } from './library'
 import { registerRecorderIpc } from './recorder'
+import { registerExportIpc } from './export'
 import { registerShortcuts } from './shortcuts'
 
 const MIME_BY_EXT: Record<string, string> = {
@@ -80,6 +81,7 @@ export function registerCoreIpc(): void {
   registerCaptureIpc()
   registerLibraryIpc()
   registerRecorderIpc()
+  registerExportIpc()
 }
 
 function findSender(event: Electron.IpcMainInvokeEvent): Electron.BrowserWindow | undefined {

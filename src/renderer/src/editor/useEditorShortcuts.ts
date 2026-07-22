@@ -1,7 +1,8 @@
 /**
  * 에디터 전역 단축키. 소유자: Editor.
  *
- * Ctrl+Z 실행 취소 · Ctrl+Shift+Z/Ctrl+Y 다시 실행 · Ctrl+C/V 복제
+ * Ctrl+Z 실행 취소 · Ctrl+Shift+Z/Ctrl+Y 다시 실행 · Ctrl+C 복사
+ * Ctrl+V 붙여넣기(클립보드 이미지 우선, 없으면 객체 복제)
  * Ctrl+S 저장 · Ctrl+Shift+C 클립보드 복사 · Delete 삭제 · 방향키 이동
  * V/A/L/R/O/T 도구 전환
  */
@@ -56,10 +57,7 @@ export function useEditorShortcuts(opts: {
             if (e.shiftKey) onCopyImage()
             else store.copySelection()
             return
-          case 'v':
-            e.preventDefault()
-            store.paste()
-            return
+          // Ctrl+V는 window paste 이벤트에서 처리 (클립보드 이미지 우선)
           default:
             return
         }
@@ -93,7 +91,41 @@ export function useEditorShortcuts(opts: {
         store.setTool(tool)
       }
     }
+
+    /** Ctrl+V — 클립보드에 이미지가 있으면 이미지 객체로 삽입, 아니면 내부 객체 붙여넣기 */
+    const pasteHandler = (e: ClipboardEvent): void => {
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.isContentEditable)) return
+      const store = useEditorStore.getState()
+      const items = e.clipboardData?.items
+      const imageItem = items
+        ? Array.from(items).find((it) => it.type.startsWith('image/'))
+        : undefined
+      if (!imageItem) {
+        store.paste()
+        return
+      }
+      e.preventDefault()
+      const file = imageItem.getAsFile()
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = () => {
+        const src = typeof reader.result === 'string' ? reader.result : null
+        if (!src) return
+        const img = new window.Image()
+        img.onload = () => {
+          useEditorStore.getState().pasteImage(src, img.naturalWidth, img.naturalHeight)
+        }
+        img.src = src
+      }
+      reader.readAsDataURL(file)
+    }
+
     window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    window.addEventListener('paste', pasteHandler)
+    return () => {
+      window.removeEventListener('keydown', handler)
+      window.removeEventListener('paste', pasteHandler)
+    }
   }, [onSave, onCopyImage])
 }
