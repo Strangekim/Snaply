@@ -1,0 +1,28 @@
+appId: com.snaply.app
+productName: Snaply
+directories:
+  output: release
+  buildResources: resources
+files:
+  - out/**
+  - resources/**
+  - package.json
+asarUnpack:
+  - resources/**
+  - '**/node_modules/ffmpeg-static/**'
+win:
+  target:
+    - nsis
+  icon: resources/icon-256.png
+nsis:
+  oneClick: true
+  deleteAppDataOnUninstall: false
+mac:
+  target:
+    - dmg
+  icon: resources/icon-512.png
+  category: public.app-category.productivity
+  extendInfo:
+    NSCameraUsageDescription: 웹캠 오버레이 녹화에 카메라를 사용해요.
+    NSMicrophoneUsageDescription: 녹화 시 마이크 소리를 담는 데 사용해요.
+publish: null

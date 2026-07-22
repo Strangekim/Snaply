@@ -1,0 +1,264 @@
+/**
+ * Snaply IPC 계약 v1 — 메인↔렌더러 간 모든 통신은 이 파일에 정의된 채널만 사용한다.
+ * 소유자: Architect (메인 루프). 다른 에이전트는 읽기 전용.
+ */
+
+// ───────────────────────── 공통 타입 ─────────────────────────
+
+export type CaptureMode = 'region' | 'window' | 'fullscreen' | 'scrolling' | 'all-in-one'
+
+export type AfterCaptureAction = 'editor' | 'clipboard' | 'quick-annotate'
+
+export interface DisplayInfo {
+  id: number
+  label: string
+  bounds: { x: number; y: number; width: number; height: number }
+  scaleFactor: number
+  isPrimary: boolean
+}
+
+export interface CaptureOptions {
+  mode: CaptureMode
+  /** 지연 캡처 (ms). 0이면 즉시 */
+  delayMs?: number
+  /** 예약 캡처: epoch ms. delayMs보다 우선 */
+  scheduledAt?: number
+  /** 멀티 모니터: 대상 디스플레이 id (fullscreen 전용) */
+  displayId?: number
+  afterAction?: AfterCaptureAction
+}
+
+export interface RegionRect {
+  x: number
+  y: number
+  width: number
+  height: number
+  displayId: number
+}
+
+export interface CaptureResult {
+  /** 라이브러리 항목 id (nanoid) */
+  id: string
+  filePath: string
+  width: number
+  height: number
+  mode: CaptureMode
+  createdAt: number
+  /** 캡처 대상 앱/창 제목 (창 캡처 시) */
+  sourceApp?: string
+  sourceTitle?: string
+}
+
+// ───────────────────────── 라이브러리 ─────────────────────────
+
+export type ItemKind = 'image' | 'video' | 'gif'
+
+export interface LibraryItem {
+  id: string
+  filePath: string
+  thumbPath?: string
+  kind: ItemKind
+  mode?: CaptureMode
+  width: number
+  height: number
+  createdAt: number
+  sourceApp?: string
+  sourceTitle?: string
+  tags: string[]
+  pinned: boolean
+  favorite: boolean
+  folderId?: string
+  ocrText?: string
+  fileSize: number
+}
+
+export interface LibraryQuery {
+  text?: string
+  tags?: string[]
+  kind?: ItemKind
+  folderId?: string
+  favoriteOnly?: boolean
+  pinnedOnly?: boolean
+  from?: number
+  to?: number
+  limit?: number
+  offset?: number
+}
+
+export interface LibraryFolder {
+  id: string
+  name: string
+  createdAt: number
+}
+
+// ───────────────────────── 녹화 ─────────────────────────
+
+export interface RecordOptions {
+  mode: 'region' | 'fullscreen'
+  region?: RegionRect
+  displayId?: number
+  mic: boolean
+  systemAudio: boolean
+  webcam: boolean
+  format: 'mp4' | 'gif'
+  fps?: number
+}
+
+export interface RecordResult {
+  id: string
+  filePath: string
+  durationMs: number
+  format: 'mp4' | 'gif' | 'webm'
+}
+
+// ───────────────────────── 설정 ─────────────────────────
+
+export interface HotkeySettings {
+  allInOne: string
+  region: string
+  fullscreen: string
+  window: string
+  record: string
+}
+
+export interface AppSettings {
+  hotkeys: HotkeySettings
+  savePath: string
+  filenamePattern: string // 예: 'snaply-{yyyy}{MM}{dd}-{HH}{mm}{ss}'
+  language: 'ko' | 'en'
+  theme: 'light' | 'dark' | 'system'
+  autoStart: boolean
+  afterCapture: AfterCaptureAction
+  onboardingDone: boolean
+}
+
+// ───────────────────────── OCR ─────────────────────────
+
+export interface OcrRequest {
+  /** 이미지 파일 경로 또는 dataURL */
+  source: string
+  languages?: string // 'kor+eng'
+}
+
+export interface OcrResult {
+  text: string
+  words: Array<{ text: string; bbox: { x0: number; y0: number; x1: number; y1: number }; confidence: number }>
+}
+
+// ───────────────────────── 내보내기 ─────────────────────────
+
+export type ExportFormat = 'png' | 'jpg' | 'webp' | 'pdf' | 'tiff' | 'pptx'
+
+export interface ExportRequest {
+  itemId?: string
+  /** 에디터에서 넘기는 경우 dataURL */
+  dataUrl?: string
+  format: ExportFormat
+  /** 미지정 시 저장 다이얼로그 */
+  targetPath?: string
+}
+
+// ───────────────────────── invoke 채널 (renderer → main, 응답 있음) ─────────────────────────
+
+export interface InvokeChannels {
+  'capture:start': { req: CaptureOptions; res: void }
+  'capture:cancel': { req: void; res: void }
+  /** 오버레이에서 영역 확정 → 메인이 크롭·저장 후 CaptureResult 반환 */
+  'capture:commitRegion': { req: RegionRect; res: CaptureResult }
+  'capture:commitWindow': { req: { sourceId: string; title?: string; appName?: string }; res: CaptureResult }
+  'capture:commitFullscreen': { req: { displayId: number }; res: CaptureResult }
+  /** 오버레이용: 현재 화면 프리즈 프레임 (dataURL) */
+  'capture:getFrozenFrame': { req: { displayId: number }; res: { dataUrl: string; displayId: number } }
+  'capture:listDisplays': { req: void; res: DisplayInfo[] }
+  'capture:listWindows': {
+    req: void
+    res: Array<{ sourceId: string; title: string; appName?: string; thumbnailDataUrl: string }>
+  }
+  'capture:scrolling:start': { req: RegionRect; res: CaptureResult }
+
+  'clipboard:writeImage': { req: { dataUrl?: string; filePath?: string }; res: void }
+  'clipboard:writeText': { req: string; res: void }
+
+  'library:list': { req: LibraryQuery; res: LibraryItem[] }
+  'library:get': { req: string; res: LibraryItem | null }
+  'library:update': { req: { id: string; patch: Partial<LibraryItem> }; res: void }
+  'library:delete': { req: string; res: void }
+  'library:folders': { req: void; res: LibraryFolder[] }
+  'library:createFolder': { req: string; res: LibraryFolder }
+  'library:deleteFolder': { req: string; res: void }
+  /** 에디터에서 편집 결과 저장 (새 항목 or 덮어쓰기) */
+  'library:saveEdited': { req: { itemId?: string; dataUrl: string; overwrite: boolean }; res: LibraryItem }
+
+  'record:start': { req: RecordOptions; res: void }
+  'record:stop': { req: void; res: RecordResult }
+  'record:pause': { req: void; res: void }
+  'record:resume': { req: void; res: void }
+  /** WebM blob을 넘겨 MP4/GIF로 변환·저장 */
+  'record:finalize': {
+    req: { webmDataUrl: string; format: 'mp4' | 'gif'; trimStartMs?: number; trimEndMs?: number; fps?: number }
+    res: RecordResult
+  }
+
+  'ocr:run': { req: OcrRequest; res: OcrResult }
+
+  'export:run': { req: ExportRequest; res: { filePath: string } }
+  'export:batch': {
+    req: {
+      itemIds: string[]
+      resize?: { width?: number; height?: number }
+      watermarkText?: string
+      format?: 'png' | 'jpg' | 'webp'
+    }
+    res: { outputDir: string; count: number }
+  }
+
+  'settings:get': { req: void; res: AppSettings }
+  'settings:set': { req: Partial<AppSettings>; res: AppSettings }
+
+  'window:open': { req: { window: 'editor' | 'library' | 'settings' | 'recorder'; payload?: unknown }; res: void }
+  'window:close': { req: void; res: void }
+  'window:minimize': { req: void; res: void }
+  'window:maximize': { req: void; res: void }
+
+  'file:readDataUrl': { req: string; res: string }
+  'file:showInFolder': { req: string; res: void }
+
+  'app:getVersion': { req: void; res: string }
+}
+
+// ───────────────────────── 이벤트 채널 (main → renderer, 단방향) ─────────────────────────
+
+export interface EventChannels {
+  /** 캡처 완료 브로드캐스트 (트레이/라이브러리 갱신용) */
+  'event:captureCompleted': CaptureResult
+  /** 에디터 창에 열 항목 전달 */
+  'event:openInEditor': { itemId: string; filePath: string }
+  /** 오버레이 창에 캡처 세션 시작 알림 */
+  'event:overlayStart': { mode: CaptureMode; frozenFrames: Array<{ displayId: number; dataUrl: string }> }
+  'event:overlayCancel': void
+  /** 녹화 상태 변경 */
+  'event:recordState': { state: 'idle' | 'countdown' | 'recording' | 'paused' | 'processing'; elapsedMs?: number }
+  /** 라이브러리 변경 브로드캐스트 */
+  'event:libraryChanged': void
+  /** 설정 변경 브로드캐스트 */
+  'event:settingsChanged': AppSettings
+  /** 스크롤 캡처 진행률 (0~1) */
+  'event:scrollProgress': number
+}
+
+export type InvokeChannel = keyof InvokeChannels
+export type EventChannel = keyof EventChannels
+
+// ───────────────────────── preload가 노출하는 API 형태 ─────────────────────────
+
+export interface SnaplyApi {
+  invoke<C extends InvokeChannel>(channel: C, payload: InvokeChannels[C]['req']): Promise<InvokeChannels[C]['res']>
+  on<C extends EventChannel>(channel: C, listener: (payload: EventChannels[C]) => void): () => void
+  platform: 'win32' | 'darwin' | 'linux' | string
+}
+
+declare global {
+  interface Window {
+    snaply: SnaplyApi
+  }
+}

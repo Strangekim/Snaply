@@ -1,0 +1,121 @@
+/* Snaply 디자인 토큰 — 토스 스타일. 소유자: DesignSystem.
+   모든 색상은 반드시 이 토큰을 통해서만 사용한다 (하드코딩 금지). */
+
+@import 'pretendard/dist/web/static/pretendard.css';
+
+:root {
+  /* 색상 */
+  --blue-500: #3182f6;
+  --blue-600: #1b64da;
+  --blue-50: #e8f3ff;
+  --grey-900: #191f28;
+  --grey-800: #26303e;
+  --grey-700: #333d4b;
+  --grey-600: #4e5968;
+  --grey-500: #6b7684;
+  --grey-400: #8b95a1;
+  --grey-300: #d1d6db;
+  --grey-200: #e5e8eb;
+  --grey-100: #f2f4f6;
+  --grey-50: #f9fafb;
+  --white: #ffffff;
+  --red-500: #f04452;
+  --red-50: #fdeaec;
+  --green-500: #00c471;
+  --green-50: #e5f9f1;
+  --yellow-500: #ffc342;
+
+  /* 시맨틱 */
+  --bg-page: var(--grey-50);
+  --bg-card: var(--white);
+  --bg-input: var(--grey-100);
+  --bg-hover: var(--grey-50);
+  --bg-pressed: var(--grey-100);
+  --text-title: var(--grey-900);
+  --text-body: var(--grey-700);
+  --text-sub: var(--grey-500);
+  --text-disabled: var(--grey-300);
+  --border-divider: var(--grey-200);
+  --primary: var(--blue-500);
+  --primary-pressed: var(--blue-600);
+  --primary-bg: var(--blue-50);
+  --danger: var(--red-500);
+  --success: var(--green-500);
+
+  /* 오버레이 (다크 글래스모피즘 캡슐 — 테마 무관 고정) */
+  --overlay-glass: rgba(23, 23, 28, 0.85);
+  --overlay-glass-border: rgba(255, 255, 255, 0.12);
+  --overlay-text: rgba(255, 255, 255, 0.95);
+  --overlay-text-sub: rgba(255, 255, 255, 0.6);
+  --overlay-dim: rgba(23, 23, 28, 0.45);
+
+  /* 형태 */
+  --radius-card: 16px;
+  --radius-button: 12px;
+  --radius-input: 12px;
+  --radius-capsule: 999px;
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.06);
+  --shadow-float: 0 6px 24px rgba(0, 0, 0, 0.12);
+
+  /* 타이포 */
+  --font: 'Pretendard', -apple-system, 'Segoe UI', 'Malgun Gothic', sans-serif;
+  --text-h1: 26px;
+  --text-h2: 22px;
+  --text-section: 17px;
+  --text-body-size: 15px;
+  --text-caption: 13px;
+
+  /* 간격 (4px 그리드) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* 모션 */
+  --transition-fast: 120ms ease-out;
+  --transition-base: 200ms ease-out;
+}
+
+[data-theme='dark'] {
+  --bg-page: #17171c;
+  --bg-card: #26262c;
+  --bg-input: #2e2e36;
+  --bg-hover: #2a2a31;
+  --bg-pressed: #33333b;
+  --text-title: #f2f4f6;
+  --text-body: #d1d6db;
+  --text-sub: #8b95a1;
+  --text-disabled: #4e5968;
+  --border-divider: #33333b;
+  --primary-bg: rgba(49, 130, 246, 0.16);
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.3);
+  --shadow-float: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  font-size: var(--text-body-size);
+  color: var(--text-body);
+  background: var(--bg-page);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+body.transparent {
+  background: transparent;
+}
