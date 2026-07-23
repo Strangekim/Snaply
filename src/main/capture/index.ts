@@ -1,4 +1,4 @@
-import { desktopCapturer, screen } from 'electron'
+import { desktopCapturer, globalShortcut, screen } from 'electron'
 import { mkdirSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { randomUUID } from 'crypto'
@@ -89,35 +89,112 @@ export async function startCapture(options: CaptureOptions): Promise<void> {
   await beginCapture(options)
 }
 
-/** 커서가 있는 디스플레이에 3-2-1 카운트다운을 표시한 뒤 캡처를 재시작한다 */
+/** 카운트다운 중 등록한 글로벌 단축키(Space/Esc) 해제 */
+function unregisterCountdownKeys(): void {
+  try {
+    globalShortcut.unregister('Space')
+    globalShortcut.unregister('Escape')
+  } catch {
+    // 미등록 상태면 무시
+  }
+}
+
+/**
+ * 커서가 있는 디스플레이에 3-2-1 카운트다운을 표시한 뒤 캡처를 재시작한다.
+ * - 캡처 예정 영역(지정 영역 또는 전체 화면)은 해당 디스플레이에 포커스 테두리로 계속 표시
+ * - Space: 남은 시간과 무관하게 즉시 캡처 · Esc: 취소 (카운트다운 동안만 전역 등록)
+ */
 function startVisibleCountdown(options: CaptureOptions, delayMs: number): void {
-  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
-  const win = ensureOverlayForDisplay(display)
+  const cursorDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+  const badgeWin = ensureOverlayForDisplay(cursorDisplay)
+
+  // 포커스 테두리: 지정 영역이 있으면 그 디스플레이에, 전체 화면 모드면 커서 디스플레이 전체에
+  const displays = screen.getAllDisplays()
+  const focusDisplay = options.region
+    ? (displays.find((d) => d.id === options.region!.displayId) ?? cursorDisplay)
+    : options.mode === 'fullscreen'
+      ? cursorDisplay
+      : null
+  const focusWin = focusDisplay ? ensureOverlayForDisplay(focusDisplay) : null
+  const focusRect = options.region
+    ? { x: options.region.x, y: options.region.y, width: options.region.width, height: options.region.height }
+    : focusDisplay
+      ? { x: 0, y: 0, width: focusDisplay.bounds.width, height: focusDisplay.bounds.height }
+      : null
+
+  const wins = focusWin && focusWin !== badgeWin ? [badgeWin, focusWin] : [badgeWin]
   // 사용자가 카운트다운 동안 메뉴를 열 수 있도록 클릭을 통과시킨다 (포커스도 뺏지 않음)
-  win.setIgnoreMouseEvents(true)
+  for (const w of wins) w.setIgnoreMouseEvents(true)
+
   let remaining = Math.max(1, Math.ceil(delayMs / 1000))
+  let done = false
+
+  const cleanup = (): void => {
+    done = true
+    if (pendingTimer) clearInterval(pendingTimer)
+    pendingTimer = null
+    unregisterCountdownKeys()
+    for (const w of wins) {
+      if (w.isDestroyed()) continue
+      w.webContents.send('event:overlayCountdown', 0)
+      w.webContents.send('event:overlayFocusRegion', null)
+      w.setIgnoreMouseEvents(false)
+      w.hide()
+    }
+  }
+
+  const fire = (): void => {
+    if (done) return
+    cleanup()
+    void finishDelayedCapture(options)
+  }
+
+  const cancel = (): void => {
+    if (done) return
+    cleanup()
+    sessionOptions = null
+    frozenFrames = new Map()
+  }
 
   const begin = (): void => {
-    win.webContents.send('event:overlayCountdown', remaining)
-    win.showInactive()
-    win.setBounds(display.bounds)
-    win.moveTop()
+    badgeWin.webContents.send('event:overlayCountdown', remaining)
+    if (focusWin && focusRect) focusWin.webContents.send('event:overlayFocusRegion', focusRect)
+    for (const w of wins) {
+      w.showInactive()
+      w.moveTop()
+    }
+    badgeWin.setBounds(cursorDisplay.bounds)
+    if (focusWin && focusDisplay && focusWin !== badgeWin) focusWin.setBounds(focusDisplay.bounds)
+
+    // 카운트다운 동안만 전역 단축키: Space=즉시 캡처, Esc=취소
+    try {
+      globalShortcut.register('Space', fire)
+      globalShortcut.register('Escape', cancel)
+    } catch {
+      // 등록 실패해도 카운트다운 자체는 진행
+    }
+
     pendingTimer = setInterval(() => {
       remaining -= 1
       if (remaining <= 0) {
-        if (pendingTimer) clearInterval(pendingTimer)
-        pendingTimer = null
-        win.webContents.send('event:overlayCountdown', 0)
-        win.setIgnoreMouseEvents(false)
-        win.hide()
-        void finishDelayedCapture(options)
+        fire()
       } else {
-        win.webContents.send('event:overlayCountdown', remaining)
+        badgeWin.webContents.send('event:overlayCountdown', remaining)
       }
     }, 1000)
   }
-  if (win.webContents.isLoading()) win.webContents.once('did-finish-load', begin)
-  else begin()
+  const loading = wins.filter((w) => w.webContents.isLoading())
+  if (loading.length > 0) {
+    let waits = loading.length
+    for (const w of loading) {
+      w.webContents.once('did-finish-load', () => {
+        waits -= 1
+        if (waits === 0) begin()
+      })
+    }
+  } else {
+    begin()
+  }
 }
 
 /**
@@ -247,6 +324,8 @@ async function openOverlay(mode: CaptureMode): Promise<void> {
 export function closeOverlay(): void {
   sendToOverlays('event:overlayCancel', undefined)
   sendToOverlays('event:overlayCountdown', 0)
+  sendToOverlays('event:overlayFocusRegion', null)
+  unregisterCountdownKeys()
   for (const win of getOverlayWindows()) {
     // 카운트다운 중 취소되더라도 클릭 통과 상태가 남지 않게 복구
     win.setIgnoreMouseEvents(false)

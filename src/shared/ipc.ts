@@ -265,6 +265,8 @@ export interface EventChannels {
   'event:overlayMode': CaptureMode
   /** 지연 캡처 카운트다운 (남은 초, 0이면 종료) — 커서 디스플레이 오버레이에 표시 */
   'event:overlayCountdown': number
+  /** 카운트다운 중 캡처 예정 영역 포커스 테두리 (해당 디스플레이 창 로컬 좌표, null이면 숨김) */
+  'event:overlayFocusRegion': { x: number; y: number; width: number; height: number } | null
   /** 고정 크기 배치 모드 동기화 (overlay:armPreset 릴레이) */
   'event:overlayPreset': { w: number; h: number } | null
   /** 선택 영역 모니터 간 이동 동기화 (overlay:syncRect 릴레이) */

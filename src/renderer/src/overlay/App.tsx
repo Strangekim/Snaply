@@ -33,6 +33,8 @@ export function App(): React.JSX.Element {
   const [pendingSize, setPendingSize] = useState<{ w: number; h: number } | null>(null)
   /** 지연 캡처 카운트다운 (남은 초) */
   const [countdown, setCountdown] = useState(0)
+  /** 카운트다운 중 캡처 예정 영역 포커스 테두리 (이 창 로컬 좌표) */
+  const [focusRect, setFocusRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
   /** 다른 모니터에서 이동 중인 선택 영역의 미리보기 (이 창 로컬 좌표) */
   const [ghostRect, setGhostRect] = useState<Rect | null>(null)
   /** 다른 모니터가 영역을 이어받았을 때 이 창의 선택 해제 신호 */
@@ -80,6 +82,8 @@ export function App(): React.JSX.Element {
     })
     // 지연 캡처 카운트다운 (이 창이 카운트다운 표시 담당일 때만 수신)
     const offCountdown = window.snaply.on('event:overlayCountdown', setCountdown)
+    // 카운트다운 중 캡처 예정 영역 포커스 (해당 디스플레이 창만 수신)
+    const offFocus = window.snaply.on('event:overlayFocusRegion', setFocusRect)
     // 다른 창의 캡슐에서 모드가 바뀌면 이 창도 동기화
     const offMode = window.snaply.on('event:overlayMode', (m) => {
       committing.current = false
@@ -126,6 +130,7 @@ export function App(): React.JSX.Element {
       offCancel()
       offPreset()
       offCountdown()
+      offFocus()
       offMode()
       offRect()
     }
@@ -270,43 +275,72 @@ export function App(): React.JSX.Element {
     })
   }, [])
 
-  // 지연 캡처 카운트다운: 세션 없이도(화면은 실사용 상태) 우하단 배지만 표시.
+  // 지연 캡처 카운트다운: 세션 없이도(화면은 실사용 상태) 배지 + 캡처 예정 영역 포커스만 표시.
   // 이 창은 contentProtection이라 캡처에 찍히지 않고, 클릭은 아래로 통과된다
-  if (countdown > 0) {
+  if (countdown > 0 || focusRect) {
     return (
       <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none' }}>
         <style>{overlayCss}</style>
-        <div
-          style={{
-            position: 'absolute',
-            right: 40,
-            bottom: 40,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--space-3)',
-            padding: '16px 24px',
-            borderRadius: 'var(--radius-capsule)',
-            background: 'var(--overlay-glass)',
-            border: '1px solid var(--overlay-glass-border)',
-            backdropFilter: 'blur(12px)'
-          }}
-        >
-          <span
-            key={countdown}
+        <style>{`@keyframes snaply-focus-pulse {
+          0%, 100% { outline-color: var(--primary); outline-offset: 0px; }
+          50% { outline-color: var(--overlay-text); outline-offset: 4px; }
+        }`}</style>
+
+        {/* 캡처 예정 영역 포커스 테두리 */}
+        {focusRect && (
+          <div
+            data-testid="focus-region"
             style={{
-              fontSize: 44,
-              fontWeight: 800,
-              color: 'var(--overlay-text)',
-              fontVariantNumeric: 'tabular-nums',
-              lineHeight: 1
+              position: 'absolute',
+              left: focusRect.x,
+              top: focusRect.y,
+              width: focusRect.width,
+              height: focusRect.height,
+              outline: '3px solid var(--primary)',
+              animation: 'snaply-focus-pulse 1s ease-in-out infinite',
+              boxShadow: 'inset 0 0 0 1px var(--overlay-glass-border)'
+            }}
+          />
+        )}
+
+        {countdown > 0 && (
+          <div
+            style={{
+              position: 'absolute',
+              right: 40,
+              bottom: 40,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-3)',
+              padding: '16px 24px',
+              borderRadius: 24,
+              background: 'var(--overlay-glass)',
+              border: '1px solid var(--overlay-glass-border)',
+              backdropFilter: 'blur(12px)'
             }}
           >
-            {countdown}
-          </span>
-          <span style={{ color: 'var(--overlay-text-sub)', fontSize: 'var(--text-body-size)' }}>
-            {t('{n}초 후 캡처돼요', { n: countdown })}
-          </span>
-        </div>
+            <span
+              key={countdown}
+              style={{
+                fontSize: 44,
+                fontWeight: 800,
+                color: 'var(--overlay-text)',
+                fontVariantNumeric: 'tabular-nums',
+                lineHeight: 1
+              }}
+            >
+              {countdown}
+            </span>
+            <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ color: 'var(--overlay-text)', fontSize: 'var(--text-body-size)' }}>
+                {t('{n}초 후 캡처돼요', { n: countdown })}
+              </span>
+              <span style={{ color: 'var(--overlay-text-sub)', fontSize: 'var(--text-caption)' }}>
+                {t('Space 바로 캡처 · ESC 취소')}
+              </span>
+            </span>
+          </div>
+        )}
       </div>
     )
   }

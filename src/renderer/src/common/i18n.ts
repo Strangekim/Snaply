@@ -297,6 +297,7 @@ export const EN: Record<string, string> = {
   '높이': 'Height',
   '{n}초': '{n}s',
   '{n}초 후 캡처돼요': 'Capturing in {n}s',
+  'Space 바로 캡처 · ESC 취소': 'Space to capture now · ESC to cancel',
   '✕ 취소': '✕ Cancel',
   '드래그해서 캡처할 영역을 선택해 주세요 · ESC 취소': 'Drag to select a region to capture · ESC to cancel',
   '핸들을 끌어 크기를 조정하거나 영역을 이동할 수 있어요 · Enter 캡처 · ESC 취소':
