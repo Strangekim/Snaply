@@ -79,17 +79,45 @@ export async function startCapture(options: CaptureOptions): Promise<void> {
     pendingTimer = null
   }
   if (delay > 0) {
-    // 지연 캡처: 열려 있던 오버레이를 먼저 닫은 뒤 카운트다운 시작.
-    // (오버레이가 떠 있는 채로 카운트하면 지연 후 프리즈 프레임에 오버레이가 함께 찍힌다)
+    // 지연 캡처: 오버레이를 닫고 눈에 보이는 카운트다운 후 재진입.
+    // 카운트다운 배지는 contentProtection으로 캡처에서 제외되고, 클릭은 아래 앱으로 통과된다
     closeOverlay()
     frozenFrames = new Map()
-    pendingTimer = setTimeout(() => {
-      pendingTimer = null
-      void beginCapture(options)
-    }, delay)
+    startVisibleCountdown(options, delay)
     return
   }
   await beginCapture(options)
+}
+
+/** 커서가 있는 디스플레이에 3-2-1 카운트다운을 표시한 뒤 캡처를 재시작한다 */
+function startVisibleCountdown(options: CaptureOptions, delayMs: number): void {
+  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+  const win = ensureOverlayForDisplay(display)
+  // 사용자가 카운트다운 동안 메뉴를 열 수 있도록 클릭을 통과시킨다 (포커스도 뺏지 않음)
+  win.setIgnoreMouseEvents(true)
+  let remaining = Math.max(1, Math.ceil(delayMs / 1000))
+
+  const begin = (): void => {
+    win.webContents.send('event:overlayCountdown', remaining)
+    win.showInactive()
+    win.setBounds(display.bounds)
+    win.moveTop()
+    pendingTimer = setInterval(() => {
+      remaining -= 1
+      if (remaining <= 0) {
+        if (pendingTimer) clearInterval(pendingTimer)
+        pendingTimer = null
+        win.webContents.send('event:overlayCountdown', 0)
+        win.setIgnoreMouseEvents(false)
+        win.hide()
+        void beginCapture(options)
+      } else {
+        win.webContents.send('event:overlayCountdown', remaining)
+      }
+    }, 1000)
+  }
+  if (win.webContents.isLoading()) win.webContents.once('did-finish-load', begin)
+  else begin()
 }
 
 /** 오버레이가 화면에 보이는 상태라면 숨기고, 컴포지터가 반영할 시간을 잠깐 기다린다 */
@@ -163,7 +191,10 @@ async function openOverlay(mode: CaptureMode): Promise<void> {
 
 export function closeOverlay(): void {
   sendToOverlays('event:overlayCancel', undefined)
+  sendToOverlays('event:overlayCountdown', 0)
   for (const win of getOverlayWindows()) {
+    // 카운트다운 중 취소되더라도 클릭 통과 상태가 남지 않게 복구
+    win.setIgnoreMouseEvents(false)
     if (win.isVisible()) win.hide()
   }
 }
@@ -320,6 +351,11 @@ export function registerCaptureIpc(): void {
   // 선택 영역의 모니터 간 이동 동기화 (미리보기/핸드오프)
   handle('overlay:syncRect', (payload) => {
     sendToOverlays('event:overlayRect', payload)
+  })
+
+  // 고정 크기 배치 모드를 모든 오버레이 창에 동기화
+  handle('overlay:armPreset', (size) => {
+    sendToOverlays('event:overlayPreset', size)
   })
 
   handle('capture:scrolling:start', async (rect) => {

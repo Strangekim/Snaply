@@ -175,6 +175,9 @@ export interface InvokeChannels {
   'capture:scrolling:start': { req: RegionRect; res: CaptureResult }
   /** 오버레이 캡슐에서 모드 변경 → 메인이 모든 오버레이 창에 event:overlayMode 브로드캐스트 */
   'overlay:setMode': { req: CaptureMode; res: void }
+  /** 고정 크기 배치 모드: W×H 사각형이 마우스를 따라다니고 클릭한 곳에 지정된다.
+   * null이면 배치 모드 해제. 모든 오버레이 창에 event:overlayPreset으로 릴레이 */
+  'overlay:armPreset': { req: { w: number; h: number } | null; res: void }
   /** 선택 영역을 모니터 사이로 옮길 때 절대(가상 데스크톱) 좌표를 다른 오버레이 창들과 동기화.
    * final=false: 드래그 중 미리보기, final=true: 드롭 — 중심이 속한 디스플레이 창이 영역을 이어받는다 */
   'overlay:syncRect': {
@@ -258,6 +261,10 @@ export interface EventChannels {
   'event:overlayCancel': void
   /** 캡슐에서 모드 변경 시 모든 오버레이 창 동기화 */
   'event:overlayMode': CaptureMode
+  /** 지연 캡처 카운트다운 (남은 초, 0이면 종료) — 커서 디스플레이 오버레이에 표시 */
+  'event:overlayCountdown': number
+  /** 고정 크기 배치 모드 동기화 (overlay:armPreset 릴레이) */
+  'event:overlayPreset': { w: number; h: number } | null
   /** 선택 영역 모니터 간 이동 동기화 (overlay:syncRect 릴레이) */
   'event:overlayRect': {
     rect: { x: number; y: number; width: number; height: number } | null

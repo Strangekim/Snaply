@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { Ellipse, Group, Image as KImage, Layer, Rect, Shape, Stage, Transformer } from 'react-konva'
 import type Konva from 'konva'
+import KonvaLib from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { Button } from '@ds/index'
 import { useI18n } from '../common/i18n'
@@ -109,6 +110,58 @@ function SpotlightDim({
   )
 }
 
+/** 필터 프리셋 → Konva 필터 구성. 참고: 블러/돋보기 객체는 원본 이미지를 샘플링하므로
+ * 필터 적용 전 픽셀이 비칠 수 있다 (알려진 제약) */
+const FILTER_CONFIG: Record<string, { filters: typeof KonvaLib.Filters.Grayscale[]; attrs?: Record<string, number> }> = {
+  none: { filters: [] },
+  grayscale: { filters: [KonvaLib.Filters.Grayscale] },
+  sepia: { filters: [KonvaLib.Filters.Sepia] },
+  'high-contrast': { filters: [KonvaLib.Filters.Contrast], attrs: { contrast: 45 } },
+  invert: { filters: [KonvaLib.Filters.Invert] },
+  brighten: { filters: [KonvaLib.Filters.Brighten], attrs: { brightness: 0.25 } },
+  darken: { filters: [KonvaLib.Filters.Brighten], attrs: { brightness: -0.25 } }
+}
+
+/** 필터가 적용된 배경 이미지 — Konva 필터는 cache()가 필요하다 */
+function FilteredImage({
+  image,
+  crop,
+  docW,
+  docH,
+  filter
+}: {
+  image: HTMLImageElement
+  crop: RectArea | null
+  docW: number
+  docH: number
+  filter: string
+}): JSX.Element {
+  const ref = useRef<Konva.Image>(null)
+  const cfg = FILTER_CONFIG[filter] ?? FILTER_CONFIG.none
+
+  useEffect(() => {
+    const node = ref.current
+    if (!node) return
+    if (cfg.filters.length > 0) node.cache({ pixelRatio: 1 })
+    else node.clearCache()
+    node.getLayer()?.batchDraw()
+  }, [image, crop, docW, docH, filter, cfg.filters.length])
+
+  return (
+    <KImage
+      ref={ref}
+      image={image}
+      x={0}
+      y={0}
+      width={docW}
+      height={docH}
+      crop={crop ?? undefined}
+      filters={cfg.filters}
+      {...(cfg.attrs ?? {})}
+    />
+  )
+}
+
 /** 배경 이미지 + 문서 전체 효과(테두리/그림자/라운드/찢김) */
 function BackgroundWithEffects({
   image,
@@ -144,7 +197,7 @@ function BackgroundWithEffects({
         />
       )}
       <Group clipFunc={clip ? trace : undefined} listening={false}>
-        <KImage image={image} x={0} y={0} width={docW} height={docH} crop={crop ?? undefined} />
+        <FilteredImage image={image} crop={crop} docW={docW} docH={docH} filter={effects.filter ?? 'none'} />
       </Group>
       {effects.border.enabled && (
         <Shape

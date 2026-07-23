@@ -220,7 +220,8 @@ export function ItemCard({
           <div className={styles.chips}>
             {chips.map((tag) => (
               <span key={tag} className={styles.chip}>
-                {tag}
+                {/* 자동 태그는 DB에 한국어로 저장된다 — 표시할 때 로케일에 맞춰 번역 */}
+                {t(tag)}
               </span>
             ))}
             {extra > 0 && <span className={styles.chip}>+{extra}</span>}

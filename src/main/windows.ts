@@ -113,6 +113,12 @@ export function ensureOverlayForDisplay(display: Electron.Display): BrowserWindo
   win.setBounds(display.bounds)
   // 기본 'floating' 레벨은 포커스 이동 시 다른 창 아래로 내려갈 수 있다 — 캡처 오버레이는 항상 최상단
   win.setAlwaysOnTop(true, 'screen-saver')
+  // 오버레이 UI(카운트다운 배지 등)가 캡처 결과에 찍히지 않도록 캡처에서 제외
+  try {
+    win.setContentProtection(true)
+  } catch {
+    // TODO(platform-verify): 미지원 플랫폼에서는 무시 — 프리즈 프레임 방식이라 실사용 영향 없음
+  }
   win.on('blur', () => {
     // 팝오버 입력 등으로 포커스가 흔들려도 오버레이가 뒤로 밀리지 않게 유지
     if (!win.isDestroyed() && win.isVisible()) win.moveTop()

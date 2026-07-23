@@ -2,13 +2,14 @@
  * 문서 전체 이미지 효과 — 테두리/그림자/라운드/찢어진 가장자리. 소유자: Editor.
  * 경로 생성은 순수 로직 (ctx는 최소 인터페이스만 사용 → 테스트 가능).
  */
-import type { ImageEffects } from './types'
+import type { FilterPreset, ImageEffects } from './types'
 
 export const DEFAULT_EFFECTS: ImageEffects = {
   border: { enabled: false, color: 'black', width: 4 },
   shadow: { enabled: false },
   cornerRadius: 0,
-  torn: { top: false, bottom: false, left: false, right: false }
+  torn: { top: false, bottom: false, left: false, right: false },
+  filter: 'none'
 }
 
 /** 부분 상태(구버전 문서 포함)를 완전한 효과 객체로 정규화 */
@@ -18,9 +19,21 @@ export function normalizeEffects(e?: Partial<ImageEffects> | null): ImageEffects
     border: { ...DEFAULT_EFFECTS.border, ...e.border },
     shadow: { ...DEFAULT_EFFECTS.shadow, ...e.shadow },
     cornerRadius: e.cornerRadius ?? 0,
-    torn: { ...DEFAULT_EFFECTS.torn, ...e.torn }
+    torn: { ...DEFAULT_EFFECTS.torn, ...e.torn },
+    filter: e.filter ?? 'none'
   }
 }
+
+/** 필터 프리셋 목록 (EffectsSheet UI 순서) */
+export const FILTER_PRESETS: FilterPreset[] = [
+  'none',
+  'grayscale',
+  'sepia',
+  'high-contrast',
+  'invert',
+  'brighten',
+  'darken'
+]
 
 /** 배경 클리핑(라운드/찢김)이 필요한가 */
 export function hasClipEffects(e: ImageEffects): boolean {

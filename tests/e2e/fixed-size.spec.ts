@@ -42,9 +42,16 @@ test('고정 크기(300×400)를 적용하면 그 크기의 선택 영역이 조
   await overlay.locator('input[aria-label="높이"]').fill('400')
   await overlay.locator('button:has-text("적용")').click()
 
-  // 조정 단계: 크기 배지에 300 × 400, 캡처 액션바 표시
+  // 배치 모드: 마우스를 따라다니는 300×400 프리뷰 + 안내 문구
+  const vw = await overlay.evaluate(() => ({ w: window.innerWidth, h: window.innerHeight }))
+  await overlay.mouse.move(vw.w / 2, vw.h / 2)
   await expect(overlay.locator('text=300 × 400').first()).toBeVisible({ timeout: 5_000 })
-  await expect(overlay.locator('text=✓ 캡처')).toBeVisible()
+  await expect(overlay.locator('text=원하는 위치에서 클릭하면 이 크기로 지정돼요').first()).toBeVisible()
+
+  // 클릭 → 그 위치에 지정되고 조정 단계(캡처 액션바) 진입
+  await overlay.mouse.click(vw.w / 2, vw.h / 2)
+  await expect(overlay.locator('text=✓ 캡처')).toBeVisible({ timeout: 5_000 })
+  await expect(overlay.locator('text=300 × 400').first()).toBeVisible()
 
   // ESC로 취소 (실제 캡처는 다른 스펙에서 검증)
   await overlay.keyboard.press('Escape')

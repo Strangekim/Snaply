@@ -78,6 +78,9 @@ interface RegionSelectProps {
   onSyncRect?: (rect: Rect, final: boolean) => void
   /** 값이 바뀌면 선택을 해제하고 idle로 (다른 모니터가 영역을 이어받았을 때) */
   resetSignal?: number
+  /** 고정 크기 배치 모드: W×H 사각형이 마우스를 따라다니고 클릭으로 지정 */
+  pendingSize?: { w: number; h: number } | null
+  onPlacePreset?: (rect: Rect) => void
 }
 
 /** 영역 선택: 십자선 + 돋보기 → 드래그 → 조정 단계(8방향 핸들 + 이동 + 액션바) */
@@ -90,7 +93,9 @@ export function RegionSelect({
   idleHint,
   initialRect,
   onSyncRect,
-  resetSignal
+  resetSignal,
+  pendingSize,
+  onPlacePreset
 }: RegionSelectProps): React.JSX.Element {
   const { t } = useI18n()
   const [phase, setPhase] = useState<Phase>('idle')
@@ -144,8 +149,24 @@ export function RegionSelect({
     [sel]
   )
 
+  /** 배치 모드: 마우스 중심의 W×H 사각형 (창 안으로 클램프) */
+  const placementRect = (mx: number, my: number): Rect | null => {
+    if (!pendingSize) return null
+    const w = Math.min(pendingSize.w, window.innerWidth)
+    const h = Math.min(pendingSize.h, window.innerHeight)
+    const x = Math.min(Math.max(0, Math.round(mx - w / 2)), window.innerWidth - w)
+    const y = Math.min(Math.max(0, Math.round(my - h / 2)), window.innerHeight - h)
+    return { x, y, w, h }
+  }
+
   const onMouseDown = (e: React.MouseEvent): void => {
     if (e.button !== 0) return
+    // 고정 크기 배치 모드: 클릭한 위치에 영역 지정 → 조정 단계
+    if (pendingSize) {
+      const rect = placementRect(e.clientX, e.clientY)
+      if (rect) onPlacePreset?.(rect)
+      return
+    }
     // idle 또는 조정 단계에서 선택 영역 밖 클릭 → 새로 드래그 시작
     dragStart.current = { x: e.clientX, y: e.clientY }
     setSel({ x: e.clientX, y: e.clientY, w: 0, h: 0 })
@@ -214,8 +235,63 @@ export function RegionSelect({
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseLeave}
     >
+      {/* 고정 크기 배치 프리뷰: 마우스를 따라다니는 W×H 사각형 — 클릭하면 지정 */}
+      {pendingSize && mouse && phase === 'idle' && (() => {
+        const rect = placementRect(mouse.x, mouse.y)
+        if (!rect) return null
+        return (
+          <div
+            style={{
+              position: 'absolute',
+              left: rect.x,
+              top: rect.y,
+              width: rect.w,
+              height: rect.h,
+              outline: '2px solid var(--primary)',
+              overflow: 'hidden',
+              pointerEvents: 'none'
+            }}
+          >
+            {session.frames.map((f) => {
+              const d = session.displays.find((dd) => dd.id === f.displayId)
+              if (!d) return null
+              return (
+                <img
+                  key={f.displayId}
+                  src={f.dataUrl}
+                  draggable={false}
+                  style={{
+                    position: 'absolute',
+                    left: -rect.x,
+                    top: -rect.y,
+                    width: d.bounds.width,
+                    height: d.bounds.height
+                  }}
+                />
+              )
+            })}
+          </div>
+        )
+      })()}
+      {pendingSize && mouse && phase === 'idle' && (
+        <div
+          style={{
+            ...glassCapsule,
+            position: 'absolute',
+            left: Math.max(4, mouse.x - 40),
+            top: Math.max(4, mouse.y - Math.min(pendingSize.h, window.innerHeight) / 2 - 40),
+            padding: '4px 12px',
+            fontSize: 'var(--text-caption)',
+            fontVariantNumeric: 'tabular-nums',
+            pointerEvents: 'none'
+          }}
+        >
+          {pendingSize.w} × {pendingSize.h}
+        </div>
+      )}
+
       {/* 십자선 (선택 전/드래그 중) */}
-      {phase !== 'adjust' && mouse && (
+      {!pendingSize && phase !== 'adjust' && mouse && (
         <>
           <div
             style={{
@@ -401,8 +477,8 @@ export function RegionSelect({
         </div>
       )}
 
-      {/* 돋보기 (선택 전/드래그 중) */}
-      {phase !== 'adjust' && mouse && <Magnifier session={session} mouse={mouse} />}
+      {/* 돋보기 (선택 전/드래그 중 — 배치 모드에서는 숨김) */}
+      {!pendingSize && phase !== 'adjust' && mouse && <Magnifier session={session} mouse={mouse} />}
 
       {/* 안내 문구 */}
       {phase === 'idle' && (
@@ -418,7 +494,9 @@ export function RegionSelect({
             pointerEvents: 'none'
           }}
         >
-          {idleHint ?? t('드래그해서 캡처할 영역을 선택해 주세요 · ESC 취소')}
+          {pendingSize
+            ? t('원하는 위치에서 클릭하면 이 크기로 지정돼요 · ESC 취소')
+            : (idleHint ?? t('드래그해서 캡처할 영역을 선택해 주세요 · ESC 취소'))}
         </div>
       )}
       {phase === 'adjust' && (

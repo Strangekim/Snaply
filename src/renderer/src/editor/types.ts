@@ -202,6 +202,9 @@ export type AnnoObject =
 export type AnnoType = AnnoObject['type']
 
 /** 문서 전체 이미지 효과 (Phase 3) */
+/** 배경 이미지 필터 프리셋 */
+export type FilterPreset = 'none' | 'grayscale' | 'sepia' | 'high-contrast' | 'invert' | 'brighten' | 'darken'
+
 export interface ImageEffects {
   border: { enabled: boolean; color: ColorId; width: number }
   shadow: { enabled: boolean }
@@ -209,6 +212,8 @@ export interface ImageEffects {
   cornerRadius: number
   /** 찢어진 가장자리 — 방향별 선택 */
   torn: { top: boolean; bottom: boolean; left: boolean; right: boolean }
+  /** 배경 이미지 필터 (흑백/세피아/고대비 등). 구버전 문서엔 없음 → 'none' */
+  filter?: FilterPreset
 }
 
 /** 히스토리에 스냅샷으로 저장되는 문서 상태 */

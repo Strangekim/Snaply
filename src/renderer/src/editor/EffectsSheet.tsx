@@ -7,8 +7,20 @@ import { BottomSheet, Segmented, Toggle } from '@ds/index'
 import { useI18n } from '../common/i18n'
 import styles from './editor.module.css'
 import { useEditorStore } from './store'
-import { normalizeEffects } from './effects'
+import { FILTER_PRESETS, normalizeEffects } from './effects'
 import { COLOR_TOKEN, PALETTE_ORDER } from './palette'
+import type { FilterPreset } from './types'
+
+/** 필터 프리셋 한국어 라벨 (표시 시 t()로 번역) */
+const FILTER_LABELS: Record<FilterPreset, string> = {
+  none: '없음',
+  grayscale: '흑백',
+  sepia: '세피아',
+  'high-contrast': '고대비',
+  invert: '반전',
+  brighten: '밝게',
+  darken: '어둡게'
+}
 
 // 로케일 변경이 반영되도록 렌더 시점에 라벨을 만든다
 const radiusLevels = (t: (ko: string) => string): Array<{ value: string; label: string; px: number }> => [
@@ -126,6 +138,39 @@ export function EffectsSheet(): JSX.Element {
                 />
               </label>
             ))}
+          </div>
+        </div>
+
+        {/* 필터 프리셋 (흑백/세피아/고대비 등) */}
+        <div className={styles.effectRow} style={{ alignItems: 'flex-start' }}>
+          <span className={styles.effectLabel}>{t('필터')}</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', justifyContent: 'flex-end', maxWidth: 320 }}>
+            {FILTER_PRESETS.map((preset) => {
+              const active = (effects.filter ?? 'none') === preset
+              return (
+                <button
+                  key={preset}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => updateEffects({ filter: preset })}
+                  style={{
+                    height: 34,
+                    padding: '0 14px',
+                    borderRadius: 'var(--radius-capsule)',
+                    border: active ? '1px solid var(--primary)' : '1px solid var(--border-divider)',
+                    background: active ? 'var(--primary-bg)' : 'var(--bg-input)',
+                    color: active ? 'var(--primary)' : 'var(--text-body)',
+                    fontFamily: 'var(--font)',
+                    fontSize: 'var(--text-caption)',
+                    fontWeight: active ? 600 : 500,
+                    cursor: 'pointer',
+                    transition: 'all var(--transition-fast)'
+                  }}
+                >
+                  {t(FILTER_LABELS[preset])}
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>

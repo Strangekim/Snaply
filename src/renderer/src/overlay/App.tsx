@@ -27,8 +27,12 @@ export function App(): React.JSX.Element {
   const [showCapsule, setShowCapsule] = useState(false)
   const [mode, setMode] = useState<OverlayMode>('region')
   const [interacting, setInteracting] = useState(false)
-  /** 고정 크기 캡처: 캡슐에서 지정한 W×H 선택 영역 (RegionSelect가 adjust 단계로 이어받는다) */
+  /** 고정 크기 캡처: 핸드오프로 넘어온 선택 영역 (RegionSelect가 adjust 단계로 이어받는다) */
   const [presetRect, setPresetRect] = useState<Rect | null>(null)
+  /** 고정 크기 배치 모드: W×H 사각형이 마우스를 따라다니고 클릭으로 지정 (전 모니터 동기화) */
+  const [pendingSize, setPendingSize] = useState<{ w: number; h: number } | null>(null)
+  /** 지연 캡처 카운트다운 (남은 초) */
+  const [countdown, setCountdown] = useState(0)
   /** 다른 모니터에서 이동 중인 선택 영역의 미리보기 (이 창 로컬 좌표) */
   const [ghostRect, setGhostRect] = useState<Rect | null>(null)
   /** 다른 모니터가 영역을 이어받았을 때 이 창의 선택 해제 신호 */
@@ -59,12 +63,23 @@ export function App(): React.JSX.Element {
       setMode(toOverlayMode(payload.mode))
       setInteracting(false)
       setPresetRect(null)
+      setPendingSize(null)
+      setGhostRect(null)
     })
     const offCancel = window.snaply.on('event:overlayCancel', () => {
       setSession(null)
       setInteracting(false)
       setPresetRect(null)
+      setPendingSize(null)
+      setGhostRect(null)
     })
+    // 고정 크기 배치 모드 on/off (모든 모니터 동기화)
+    const offPreset = window.snaply.on('event:overlayPreset', (size) => {
+      setPendingSize(size)
+      if (size) setPresetRect(null)
+    })
+    // 지연 캡처 카운트다운 (이 창이 카운트다운 표시 담당일 때만 수신)
+    const offCountdown = window.snaply.on('event:overlayCountdown', setCountdown)
     // 다른 창의 캡슐에서 모드가 바뀌면 이 창도 동기화
     const offMode = window.snaply.on('event:overlayMode', (m) => {
       committing.current = false
@@ -109,6 +124,8 @@ export function App(): React.JSX.Element {
     return () => {
       offStart()
       offCancel()
+      offPreset()
+      offCountdown()
       offMode()
       offRect()
     }
@@ -212,22 +229,17 @@ export function App(): React.JSX.Element {
     []
   )
 
-  // 고정 크기 캡처: W×H 영역을 이 디스플레이 중앙에 만든다 (화면보다 크면 화면 크기로 제한)
-  const applyPresetSize = useCallback(
-    (w: number, h: number) => {
-      if (!session) return
-      const b = session.displays[0].bounds
-      const width = Math.min(w, b.width)
-      const height = Math.min(h, b.height)
-      setPresetRect({
-        x: Math.round((b.width - width) / 2),
-        y: Math.round((b.height - height) / 2),
-        w: width,
-        h: height
-      })
-    },
-    [session]
-  )
+  // 고정 크기 캡처: 배치 모드 시작 — 모든 모니터에서 W×H 사각형이 마우스를 따라다닌다
+  const applyPresetSize = useCallback((w: number, h: number) => {
+    void window.snaply.invoke('overlay:armPreset', { w, h })
+  }, [])
+
+  // 배치 확정(클릭) → 이 창에서 조정 단계로, 다른 창들은 배치 모드 해제
+  const placePreset = useCallback((rect: Rect) => {
+    setPendingSize(null)
+    setPresetRect(rect)
+    void window.snaply.invoke('overlay:armPreset', null)
+  }, [])
 
   const commitWindow = useCallback((win: WindowSource) => {
     if (committing.current) return
@@ -248,6 +260,47 @@ export function App(): React.JSX.Element {
       committing.current = false
     })
   }, [])
+
+  // 지연 캡처 카운트다운: 세션 없이도(화면은 실사용 상태) 우하단 배지만 표시.
+  // 이 창은 contentProtection이라 캡처에 찍히지 않고, 클릭은 아래로 통과된다
+  if (countdown > 0) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none' }}>
+        <style>{overlayCss}</style>
+        <div
+          style={{
+            position: 'absolute',
+            right: 40,
+            bottom: 40,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--space-3)',
+            padding: '16px 24px',
+            borderRadius: 'var(--radius-capsule)',
+            background: 'var(--overlay-glass)',
+            border: '1px solid var(--overlay-glass-border)',
+            backdropFilter: 'blur(12px)'
+          }}
+        >
+          <span
+            key={countdown}
+            style={{
+              fontSize: 44,
+              fontWeight: 800,
+              color: 'var(--overlay-text)',
+              fontVariantNumeric: 'tabular-nums',
+              lineHeight: 1
+            }}
+          >
+            {countdown}
+          </span>
+          <span style={{ color: 'var(--overlay-text-sub)', fontSize: 'var(--text-body-size)' }}>
+            {t('{n}초 후 캡처돼요', { n: countdown })}
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   if (!session) return <></>
 
@@ -285,6 +338,8 @@ export function App(): React.JSX.Element {
           onCancel={cancel}
           onInteractingChange={setInteracting}
           initialRect={presetRect}
+          pendingSize={pendingSize}
+          onPlacePreset={placePreset}
           onSyncRect={syncRect}
           resetSignal={resetSignal}
           commitLabel={mode === 'scrolling' ? t('⇊ 스크롤 캡처') : undefined}
