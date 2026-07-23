@@ -207,6 +207,21 @@ export function App(): React.JSX.Element {
   const currentSelRef = useRef<Rect | null>(null)
   const handleSelChange = useCallback((rect: Rect | null) => {
     currentSelRef.current = rect
+    // 메인에도 보고 — 캡슐(타이머)이 다른 모니터 창에 있어도 선택 영역을 쓸 수 있게
+    const current = sessionRef.current
+    if (!current) return
+    const d = current.displays[0]
+    let region: RegionRect | null = null
+    if (rect) {
+      const x1 = Math.max(rect.x, 0)
+      const y1 = Math.max(rect.y, 0)
+      const x2 = Math.min(rect.x + rect.w, d.bounds.width)
+      const y2 = Math.min(rect.y + rect.h, d.bounds.height)
+      if (x2 - x1 >= 1 && y2 - y1 >= 1) {
+        region = { x: x1, y: y1, width: x2 - x1, height: y2 - y1, displayId: d.id }
+      }
+    }
+    void window.snaply.invoke('overlay:selection', { displayId: d.id, rect: region })
   }, [])
 
   // 지연 캡처: 영역이 지정돼 있으면 카운트다운 후 그 영역을 자동 캡처,

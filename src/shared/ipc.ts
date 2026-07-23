@@ -180,6 +180,9 @@ export interface InvokeChannels {
   /** 고정 크기 배치 모드: W×H 사각형이 마우스를 따라다니고 클릭한 곳에 지정된다.
    * null이면 배치 모드 해제. 모든 오버레이 창에 event:overlayPreset으로 릴레이 */
   'overlay:armPreset': { req: { w: number; h: number } | null; res: void }
+  /** 조정 단계 선택 영역을 메인에 보고 (창이 분리된 멀티 모니터에서 타이머가 참조하는 단일 진실).
+   * rect=null이면 해당 디스플레이의 선택 해제 */
+  'overlay:selection': { req: { displayId: number; rect: RegionRect | null }; res: void }
   /** 선택 영역을 모니터 사이로 옮길 때 절대(가상 데스크톱) 좌표를 다른 오버레이 창들과 동기화.
    * final=false: 드래그 중 미리보기, final=true: 드롭 — 중심이 속한 디스플레이 창이 영역을 이어받는다 */
   'overlay:syncRect': {

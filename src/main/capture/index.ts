@@ -72,6 +72,19 @@ let pendingTimer: NodeJS.Timeout | null = null
 /** 현재 캡처 세션의 옵션 — 오버레이 커밋(commitRegion 등) 시 afterAction 등을 이어받기 위해 보관 */
 let sessionOptions: CaptureOptions | null = null
 
+/** 오버레이 창별 조정 단계 선택 영역 (멀티 모니터: 캡슐과 선택이 다른 창에 있을 수 있어 메인이 단일 진실).
+ * 타임스탬프로 최신 항목을 고른다 — 모니터 간 핸드오프 시 해제/이관 이벤트 순서 역전에 안전 */
+const overlaySelections = new Map<number, { rect: RegionRect; at: number }>()
+
+/** 가장 최근에 보고된 선택 영역 */
+function latestOverlaySelection(): RegionRect | null {
+  let best: { rect: RegionRect; at: number } | null = null
+  for (const entry of overlaySelections.values()) {
+    if (!best || entry.at > best.at) best = entry
+  }
+  return best?.rect ?? null
+}
+
 export async function startCapture(options: CaptureOptions): Promise<void> {
   const delay = options.scheduledAt ? Math.max(0, options.scheduledAt - Date.now()) : (options.delayMs ?? 0)
   if (pendingTimer) {
@@ -79,6 +92,14 @@ export async function startCapture(options: CaptureOptions): Promise<void> {
     pendingTimer = null
   }
   if (delay > 0) {
+    // 캡슐과 선택 영역이 서로 다른 모니터 창에 있으면 렌더러가 region을 못 채운다 —
+    // 메인이 보관 중인 최신 선택으로 보완한다
+    if (!options.region) {
+      const stored = latestOverlaySelection()
+      if (stored && (options.mode === 'region' || options.mode === 'all-in-one' || options.mode === 'scrolling')) {
+        options = { ...options, region: stored, mode: options.mode === 'scrolling' ? 'scrolling' : 'region' }
+      }
+    }
     // 지연 캡처: 오버레이를 닫고 눈에 보이는 카운트다운 후 재진입.
     // 카운트다운 배지는 contentProtection으로 캡처에서 제외되고, 클릭은 아래 앱으로 통과된다
     closeOverlay()
@@ -325,6 +346,7 @@ export function closeOverlay(): void {
   sendToOverlays('event:overlayCancel', undefined)
   sendToOverlays('event:overlayCountdown', 0)
   sendToOverlays('event:overlayFocusRegion', null)
+  overlaySelections.clear()
   unregisterCountdownKeys()
   for (const win of getOverlayWindows()) {
     // 카운트다운 중 취소되더라도 클릭 통과 상태가 남지 않게 복구
@@ -479,7 +501,14 @@ export function registerCaptureIpc(): void {
 
   // 캡슐 모드 변경을 모든 오버레이 창에 동기화
   handle('overlay:setMode', (mode) => {
+    overlaySelections.clear()
     sendToOverlays('event:overlayMode', mode)
+  })
+
+  // 조정 단계 선택 영역 보고 (멀티 모니터에서 타이머가 참조)
+  handle('overlay:selection', ({ displayId, rect }) => {
+    if (rect) overlaySelections.set(displayId, { rect, at: Date.now() })
+    else overlaySelections.delete(displayId)
   })
 
   // 선택 영역의 모니터 간 이동 동기화 (미리보기/핸드오프)

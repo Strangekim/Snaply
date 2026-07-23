@@ -58,6 +58,7 @@
 ## 7. 구현 노트
 
 - 진입: `capture:start` IPC에 `delayMs`(+ 선택적 `region`)가 오면 `startVisibleCountdown`이 실행된다. 오버레이의 조정 단계 선택 영역은 `RegionSelect.onSelChange` → `App.selectDelay`가 `region`으로 전달한다.
+- 멀티 모니터: 오버레이 창은 디스플레이당 1개라 선택 영역과 타이머 캡슐이 서로 다른 창에 있을 수 있다. 각 창은 조정 단계 선택을 `overlay:selection`으로 메인에 보고하고, 타이머 시작 시 region이 비어 있으면 메인이 보관 중인 최신 선택으로 채운다 (핸드오프 순서 역전 대비 타임스탬프 기준).
 - 종료 처리(`finishDelayedCapture`): region 있음 → 새 프레임 grab 후 크롭 저장 / 스크롤이면 자동 스크롤 캡처 / 전체 화면(displayId 미지정) → 커서 모니터 / 그 외 → `beginCapture` 재진입.
 - 취소·완료 시 `cleanup`이 인터벌·전역 단축키·클릭 통과 상태·포커스 표시를 모두 원복한다. `capture:cancel`(트레이 등 외부 취소)도 `closeOverlay`를 통해 동일하게 정리된다.
 - 관련 IPC 이벤트: `event:overlayCountdown`(남은 초), `event:overlayFocusRegion`(포커스 영역, 창 로컬 좌표).
