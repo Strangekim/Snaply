@@ -111,6 +111,12 @@ export function ensureOverlayForDisplay(display: Electron.Display): BrowserWindo
   // 생성 시점에는 OS가 workArea/DPI에 맞춰 크기를 잘라버린다 (예: 960→912, 혼합 DPI 모니터는 완전히 어긋남).
   // 생성 후 setBounds를 다시 호출하면 정확한 전체 화면 크기가 적용된다.
   win.setBounds(display.bounds)
+  // 기본 'floating' 레벨은 포커스 이동 시 다른 창 아래로 내려갈 수 있다 — 캡처 오버레이는 항상 최상단
+  win.setAlwaysOnTop(true, 'screen-saver')
+  win.on('blur', () => {
+    // 팝오버 입력 등으로 포커스가 흔들려도 오버레이가 뒤로 밀리지 않게 유지
+    if (!win.isDestroyed() && win.isVisible()) win.moveTop()
+  })
   windows.set(key, win)
   win.on('closed', () => windows.delete(key))
   win.webContents.setWindowOpenHandler(({ url }) => {

@@ -40,12 +40,8 @@ function applyAdjust(drag: AdjustDrag, mx: number, my: number): Rect {
   const dy = my - drag.startY
   const r = drag.startRect
   if (drag.handle === 'move') {
-    return {
-      x: Math.min(Math.max(r.x + dx, -r.w + MIN_SIZE), window.innerWidth - MIN_SIZE),
-      y: Math.min(Math.max(r.y + dy, -r.h + MIN_SIZE), window.innerHeight - MIN_SIZE),
-      w: r.w,
-      h: r.h
-    }
+    // 클램프하지 않는다 — 창 밖(다른 모니터)으로 끌고 나가면 syncRect 핸드오프로 이어진다
+    return { x: r.x + dx, y: r.y + dy, w: r.w, h: r.h }
   }
   let x1 = r.x
   let y1 = r.y
@@ -78,6 +74,10 @@ interface RegionSelectProps {
   idleHint?: string
   /** 고정 크기 캡처: 지정되면 해당 영역으로 즉시 조정 단계 진입 */
   initialRect?: Rect | null
+  /** 이동 드래그 동기화 (모니터 간 핸드오프용) — rect는 이 창 로컬 좌표 */
+  onSyncRect?: (rect: Rect, final: boolean) => void
+  /** 값이 바뀌면 선택을 해제하고 idle로 (다른 모니터가 영역을 이어받았을 때) */
+  resetSignal?: number
 }
 
 /** 영역 선택: 십자선 + 돋보기 → 드래그 → 조정 단계(8방향 핸들 + 이동 + 액션바) */
@@ -88,7 +88,9 @@ export function RegionSelect({
   onInteractingChange,
   commitLabel,
   idleHint,
-  initialRect
+  initialRect,
+  onSyncRect,
+  resetSignal
 }: RegionSelectProps): React.JSX.Element {
   const { t } = useI18n()
   const [phase, setPhase] = useState<Phase>('idle')
@@ -108,6 +110,16 @@ export function RegionSelect({
       setPhase('adjust')
     }
   }, [initialRect])
+
+  // 다른 모니터가 영역을 이어받으면 이 창의 선택은 해제한다
+  useEffect(() => {
+    if (resetSignal && resetSignal > 0) {
+      setSel(null)
+      setPhase('idle')
+      dragStart.current = null
+      adjustDrag.current = null
+    }
+  }, [resetSignal])
 
   // 조정 단계: Enter로 캡처 확정
   useEffect(() => {
@@ -140,12 +152,24 @@ export function RegionSelect({
     setPhase('drag')
   }
 
+  /** 이동 드래그 동기화 스로틀 (모니터 간 미리보기) */
+  const lastSyncAt = useRef(0)
+
   const onMouseMove = (e: React.MouseEvent): void => {
     setMouse({ x: e.clientX, y: e.clientY })
     if (phase === 'drag' && dragStart.current) {
       setSel(normalize(dragStart.current.x, dragStart.current.y, e.clientX, e.clientY))
     } else if (adjustDrag.current) {
-      setSel(applyAdjust(adjustDrag.current, e.clientX, e.clientY))
+      const next = applyAdjust(adjustDrag.current, e.clientX, e.clientY)
+      setSel(next)
+      // 이동 드래그는 다른 모니터 오버레이에 미리보기를 중계한다 (30ms 스로틀)
+      if (adjustDrag.current.handle === 'move' && onSyncRect) {
+        const now = performance.now()
+        if (now - lastSyncAt.current > 30) {
+          lastSyncAt.current = now
+          onSyncRect(next, false)
+        }
+      }
     }
   }
 
@@ -159,7 +183,16 @@ export function RegionSelect({
         setPhase('idle')
       }
     }
+    // 이동 드래그 종료 → 최종 위치를 중계 (중심이 다른 모니터면 그쪽 창이 이어받는다)
+    if (adjustDrag.current?.handle === 'move' && sel && onSyncRect) {
+      onSyncRect(sel, true)
+    }
     adjustDrag.current = null
+  }
+
+  /** 마우스가 이 창을 떠나면 십자선/돋보기를 지운다 (다른 모니터로 넘어갈 때 잔상 방지) */
+  const onMouseLeave = (): void => {
+    setMouse(null)
   }
 
   // 크기 배지 위치 (선택 영역 위, 화면 밖으로 나가지 않게)
@@ -179,6 +212,7 @@ export function RegionSelect({
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
+      onMouseLeave={onMouseLeave}
     >
       {/* 십자선 (선택 전/드래그 중) */}
       {phase !== 'adjust' && mouse && (

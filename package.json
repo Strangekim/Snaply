@@ -1,6 +1,6 @@
 {
   "name": "snaply",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Snaply — 토스 스타일의 무료 오픈소스 화면 캡처 앱",
   "main": "out/main/index.js",
   "author": "Snaply Contributors",

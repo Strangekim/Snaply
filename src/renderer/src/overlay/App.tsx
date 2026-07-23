@@ -29,7 +29,13 @@ export function App(): React.JSX.Element {
   const [interacting, setInteracting] = useState(false)
   /** 고정 크기 캡처: 캡슐에서 지정한 W×H 선택 영역 (RegionSelect가 adjust 단계로 이어받는다) */
   const [presetRect, setPresetRect] = useState<Rect | null>(null)
+  /** 다른 모니터에서 이동 중인 선택 영역의 미리보기 (이 창 로컬 좌표) */
+  const [ghostRect, setGhostRect] = useState<Rect | null>(null)
+  /** 다른 모니터가 영역을 이어받았을 때 이 창의 선택 해제 신호 */
+  const [resetSignal, setResetSignal] = useState(0)
   const committing = useRef(false)
+  const sessionRef = useRef<Session | null>(null)
+  sessionRef.current = session
 
   const cancel = useCallback(() => {
     setSession(null)
@@ -65,11 +71,46 @@ export function App(): React.JSX.Element {
       setMode(toOverlayMode(m))
       setInteracting(false)
       setPresetRect(null)
+      setGhostRect(null)
+    })
+    // 선택 영역 모니터 간 이동: 미리보기(고스트) + 드롭 시 핸드오프
+    const offRect = window.snaply.on('event:overlayRect', ({ rect, final, sourceDisplayId }) => {
+      const current = sessionRef.current
+      if (!current) return
+      const b = current.displays[0].bounds
+      if (sourceDisplayId === current.displays[0].id) {
+        // 내가 보낸 이벤트: 드롭 시 중심이 내 화면을 떠났으면 내 선택을 해제
+        if (final && rect) {
+          const cx = rect.x + rect.width / 2
+          const cy = rect.y + rect.height / 2
+          const inMine = cx >= b.x && cx < b.x + b.width && cy >= b.y && cy < b.y + b.height
+          if (!inMine) setResetSignal((n) => n + 1)
+        }
+        return
+      }
+      if (!rect) {
+        setGhostRect(null)
+        return
+      }
+      const local: Rect = { x: rect.x - b.x, y: rect.y - b.y, w: rect.width, h: rect.height }
+      if (!final) {
+        // 드래그 중: 내 화면과 겹치면 고스트 미리보기
+        const intersects = local.x < b.width && local.y < b.height && local.x + local.w > 0 && local.y + local.h > 0
+        setGhostRect(intersects ? local : null)
+        return
+      }
+      // 드롭: 중심이 내 화면에 들어왔으면 영역을 이어받아 조정 단계로
+      setGhostRect(null)
+      const cx = rect.x + rect.width / 2
+      const cy = rect.y + rect.height / 2
+      const inMine = cx >= b.x && cx < b.x + b.width && cy >= b.y && cy < b.y + b.height
+      if (inMine) setPresetRect(local)
     })
     return () => {
       offStart()
       offCancel()
       offMode()
+      offRect()
     }
   }, [])
 
@@ -156,6 +197,21 @@ export function App(): React.JSX.Element {
     void window.snaply.invoke('overlay:setMode', m)
   }, [])
 
+  // 이동 드래그 중계: 로컬 → 절대 좌표로 변환해 메인에 보낸다
+  const syncRect = useCallback(
+    (rect: Rect, final: boolean) => {
+      const current = sessionRef.current
+      if (!current) return
+      const b = current.displays[0].bounds
+      void window.snaply.invoke('overlay:syncRect', {
+        rect: { x: rect.x + b.x, y: rect.y + b.y, width: rect.w, height: rect.h },
+        final,
+        sourceDisplayId: current.displays[0].id
+      })
+    },
+    []
+  )
+
   // 고정 크기 캡처: W×H 영역을 이 디스플레이 중앙에 만든다 (화면보다 크면 화면 크기로 제한)
   const applyPresetSize = useCallback(
     (w: number, h: number) => {
@@ -229,6 +285,8 @@ export function App(): React.JSX.Element {
           onCancel={cancel}
           onInteractingChange={setInteracting}
           initialRect={presetRect}
+          onSyncRect={syncRect}
+          resetSignal={resetSignal}
           commitLabel={mode === 'scrolling' ? t('⇊ 스크롤 캡처') : undefined}
           idleHint={
             mode === 'scrolling'
@@ -237,6 +295,37 @@ export function App(): React.JSX.Element {
           }
         />
       )}
+      {/* 다른 모니터에서 이동 중인 선택 영역 미리보기 (프레임 밝게 + 점선 테두리) */}
+      {ghostRect && (mode === 'region' || mode === 'scrolling') && (
+        <div
+          style={{
+            position: 'absolute',
+            left: ghostRect.x,
+            top: ghostRect.y,
+            width: ghostRect.w,
+            height: ghostRect.h,
+            outline: '2px dashed var(--primary)',
+            overflow: 'hidden',
+            pointerEvents: 'none',
+            zIndex: 10
+          }}
+        >
+          {frame && (
+            <img
+              src={frame.dataUrl}
+              draggable={false}
+              style={{
+                position: 'absolute',
+                left: -ghostRect.x,
+                top: -ghostRect.y,
+                width: display.bounds.width,
+                height: display.bounds.height
+              }}
+            />
+          )}
+        </div>
+      )}
+
       {/* 창 목록은 캡슐이 있는(커서) 디스플레이에만 표시 */}
       {mode === 'window' && showCapsule && <WindowPicker onPick={commitWindow} />}
       {/* 전체 화면: 각 디스플레이 창에 자기 카드 표시 — 클릭한 화면을 캡처 */}

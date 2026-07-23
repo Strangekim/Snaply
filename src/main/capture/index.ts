@@ -153,6 +153,7 @@ async function openOverlay(mode: CaptureMode): Promise<void> {
       win.show()
       // show 직후 DPI 재조정으로 bounds가 어긋날 수 있어 한 번 더 강제한다
       win.setBounds(display.bounds)
+      win.moveTop()
       if (display.id === cursorDisplay.id) win.focus()
     }
     if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send)
@@ -314,6 +315,11 @@ export function registerCaptureIpc(): void {
   // 캡슐 모드 변경을 모든 오버레이 창에 동기화
   handle('overlay:setMode', (mode) => {
     sendToOverlays('event:overlayMode', mode)
+  })
+
+  // 선택 영역의 모니터 간 이동 동기화 (미리보기/핸드오프)
+  handle('overlay:syncRect', (payload) => {
+    sendToOverlays('event:overlayRect', payload)
   })
 
   handle('capture:scrolling:start', async (rect) => {

@@ -175,6 +175,12 @@ export interface InvokeChannels {
   'capture:scrolling:start': { req: RegionRect; res: CaptureResult }
   /** 오버레이 캡슐에서 모드 변경 → 메인이 모든 오버레이 창에 event:overlayMode 브로드캐스트 */
   'overlay:setMode': { req: CaptureMode; res: void }
+  /** 선택 영역을 모니터 사이로 옮길 때 절대(가상 데스크톱) 좌표를 다른 오버레이 창들과 동기화.
+   * final=false: 드래그 중 미리보기, final=true: 드롭 — 중심이 속한 디스플레이 창이 영역을 이어받는다 */
+  'overlay:syncRect': {
+    req: { rect: { x: number; y: number; width: number; height: number } | null; final: boolean; sourceDisplayId: number }
+    res: void
+  }
 
   'clipboard:writeImage': { req: { dataUrl?: string; filePath?: string }; res: void }
   'clipboard:writeText': { req: string; res: void }
@@ -252,6 +258,12 @@ export interface EventChannels {
   'event:overlayCancel': void
   /** 캡슐에서 모드 변경 시 모든 오버레이 창 동기화 */
   'event:overlayMode': CaptureMode
+  /** 선택 영역 모니터 간 이동 동기화 (overlay:syncRect 릴레이) */
+  'event:overlayRect': {
+    rect: { x: number; y: number; width: number; height: number } | null
+    final: boolean
+    sourceDisplayId: number
+  }
   /** 녹화 상태 변경 */
   'event:recordState': { state: 'idle' | 'countdown' | 'recording' | 'paused' | 'processing'; elapsedMs?: number }
   /** 라이브러리 변경 브로드캐스트 */

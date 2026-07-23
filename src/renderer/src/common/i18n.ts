@@ -52,8 +52,8 @@ export function useI18n(): { t: typeof translate; locale: Locale } {
   return { t: translate, locale: current }
 }
 
-/** 한국어 원문 → 영어 번역 맵 */
-const EN: Record<string, string> = {
+/** 한국어 원문 → 영어 번역 맵 (테스트에서 커버리지 검증용으로 export) */
+export const EN: Record<string, string> = {
   // ── 공통 ──
   '캡처했어요': 'Captured',
   '저장했어요': 'Saved',
@@ -128,6 +128,8 @@ const EN: Record<string, string> = {
     "Only the folder '{name}' is deleted. Its captures stay in All.",
   '폴더를 삭제했어요': 'Folder deleted',
   '폴더를 추가해요': 'Add folder',
+  '폴더를 삭제해요': 'Delete folder',
+  '아직 폴더가 없어요': 'No folders yet',
   '추출한 텍스트': 'Extracted text',
   '텍스트를 인식하고 있어요…': 'Recognizing text…',
   '인식된 텍스트가 없어요.': 'No text recognized.',
@@ -214,6 +216,7 @@ const EN: Record<string, string> = {
 
   // ── 에디터 패널/시트 ──
   '잘라내기': 'Crop',
+  '텍스트를 입력해 주세요': 'Type something',
   '번호 초기화': 'Reset numbering',
   '닫기': 'Close',
   '재생': 'Play',

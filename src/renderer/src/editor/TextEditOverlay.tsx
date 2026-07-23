@@ -3,6 +3,7 @@
  * 편집 중에는 해당 Konva Text가 숨겨지고 같은 위치에 textarea가 뜬다.
  */
 import { useEffect, useRef, useState, type JSX } from 'react'
+import { translate } from '../common/i18n'
 import styles from './editor.module.css'
 import { useEditorStore } from './store'
 import { resolveColor, contrastTextColor, CANVAS_FONT } from './palette'
@@ -78,7 +79,7 @@ export function TextEditOverlay(): JSX.Element | null {
         transformOrigin: 'top left'
       }}
       value={value}
-      placeholder="텍스트를 입력해 주세요"
+      placeholder={translate('텍스트를 입력해 주세요')}
       onChange={(e) => setValue(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {
