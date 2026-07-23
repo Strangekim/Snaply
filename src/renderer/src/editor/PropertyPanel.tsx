@@ -91,7 +91,7 @@ export function PropertyPanel(): JSX.Element {
       {showColor && (
         <div className={styles.panelGroup}>
           <span className={styles.panelLabel}>{t('색상')}</span>
-          <div className={styles.swatchRow} role="radiogroup" aria-label="색상">
+          <div className={styles.swatchRow} role="radiogroup" aria-label={t('색상')}>
             {PALETTE_ORDER.map((id) => (
               <button
                 key={id}
@@ -113,7 +113,7 @@ export function PropertyPanel(): JSX.Element {
           <span className={styles.panelLabel}>{t('굵기')}</span>
           <Segmented<SizeLevel>
             size="sm"
-            aria-label="굵기"
+            aria-label={t('굵기')}
             options={SIZE_OPTIONS}
             value={style.strokeLevel}
             onChange={(v) => applyStyle({ strokeLevel: v })}
@@ -126,7 +126,7 @@ export function PropertyPanel(): JSX.Element {
           <span className={styles.panelLabel}>{sizeOnly ? t('크기') : t('글자')}</span>
           <Segmented<SizeLevel>
             size="sm"
-            aria-label="글자 크기"
+            aria-label={t('글자')}
             options={SIZE_OPTIONS}
             value={style.fontLevel}
             onChange={(v) => applyStyle({ fontLevel: v })}
@@ -139,7 +139,7 @@ export function PropertyPanel(): JSX.Element {
           <span className={styles.panelLabel}>{t('머리')}</span>
           <Segmented<SizeLevel>
             size="sm"
-            aria-label="화살표 머리 크기"
+            aria-label={t('머리')}
             options={SIZE_OPTIONS}
             value={style.headLevel}
             onChange={(v) => applyStyle({ headLevel: v })}
@@ -153,7 +153,7 @@ export function PropertyPanel(): JSX.Element {
           <Toggle
             checked={style.fillEnabled}
             onChange={(v) => applyStyle({ fillEnabled: v })}
-            aria-label="채우기"
+            aria-label={t('채우기')}
           />
         </div>
       )}
@@ -164,7 +164,7 @@ export function PropertyPanel(): JSX.Element {
             <span className={styles.panelLabel}>{t('모드')}</span>
             <Segmented<BlurMode>
               size="sm"
-              aria-label="블러 모드"
+              aria-label={t('모드')}
               options={blurModeOptions(t)}
               value={style.blurMode ?? 'mosaic'}
               onChange={(v) => applyStyle({ blurMode: v })}
@@ -174,7 +174,7 @@ export function PropertyPanel(): JSX.Element {
             <span className={styles.panelLabel}>{t('강도')}</span>
             <Segmented<SizeLevel>
               size="sm"
-              aria-label="블러 강도"
+              aria-label={t('강도')}
               options={SIZE_OPTIONS}
               value={style.blurLevel ?? 'M'}
               onChange={(v) => applyStyle({ blurLevel: v })}
@@ -188,7 +188,7 @@ export function PropertyPanel(): JSX.Element {
           <span className={styles.panelLabel}>{t('모양')}</span>
           <Segmented<SpotlightShape>
             size="sm"
-            aria-label="스포트라이트 모양"
+            aria-label={t('모양')}
             options={spotlightOptions(t)}
             value={style.spotlightShape ?? 'rect'}
             onChange={(v) => applyStyle({ spotlightShape: v })}
@@ -201,7 +201,7 @@ export function PropertyPanel(): JSX.Element {
           <span className={styles.panelLabel}>{t('배율')}</span>
           <Segmented
             size="sm"
-            aria-label="돋보기 배율"
+            aria-label={t('배율')}
             options={MAGNIFY_SCALES.map((v) => ({ value: String(v), label: `${v}x` }))}
             value={String(style.magnifyScale ?? 2)}
             onChange={(v) => applyStyle({ magnifyScale: Number(v) })}
@@ -214,7 +214,7 @@ export function PropertyPanel(): JSX.Element {
           <span className={styles.panelLabel}>{t('다음 번호')} {stepCounter + 1}</span>
           <Button variant="ghost" size="sm" onClick={resetStepCounter} disabled={stepCounter === 0}>
             <IconReset size={16} />
-            &nbsp;번호 초기화
+            &nbsp;{t('번호 초기화')}
           </Button>
         </div>
       )}

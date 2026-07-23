@@ -76,6 +76,8 @@ interface RegionSelectProps {
   commitLabel?: string
   /** idle 안내 문구 (기본 영역 캡처 안내) */
   idleHint?: string
+  /** 고정 크기 캡처: 지정되면 해당 영역으로 즉시 조정 단계 진입 */
+  initialRect?: Rect | null
 }
 
 /** 영역 선택: 십자선 + 돋보기 → 드래그 → 조정 단계(8방향 핸들 + 이동 + 액션바) */
@@ -85,7 +87,8 @@ export function RegionSelect({
   onCancel,
   onInteractingChange,
   commitLabel,
-  idleHint
+  idleHint,
+  initialRect
 }: RegionSelectProps): React.JSX.Element {
   const { t } = useI18n()
   const [phase, setPhase] = useState<Phase>('idle')
@@ -97,6 +100,14 @@ export function RegionSelect({
   useEffect(() => {
     onInteractingChange(phase !== 'idle')
   }, [phase, onInteractingChange])
+
+  // 고정 크기 캡처: 캡슐에서 지정한 W×H 영역으로 바로 조정 단계 진입 (위치만 옮기고 Enter/✓)
+  useEffect(() => {
+    if (initialRect) {
+      setSel(initialRect)
+      setPhase('adjust')
+    }
+  }, [initialRect])
 
   // 조정 단계: Enter로 캡처 확정
   useEffect(() => {

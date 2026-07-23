@@ -7,6 +7,7 @@ import { Ellipse, Group, Image as KImage, Layer, Rect, Shape, Stage, Transformer
 import type Konva from 'konva'
 import type { KonvaEventObject } from 'konva/lib/Node'
 import { Button } from '@ds/index'
+import { useI18n } from '../common/i18n'
 import styles from './editor.module.css'
 import { useEditorStore } from './store'
 import { stageRegistry } from './stageRegistry'
@@ -158,6 +159,7 @@ function BackgroundWithEffects({
 }
 
 export function CanvasStage(): JSX.Element {
+  const { t } = useI18n()
   const imageUrl = useEditorStore((s) => s.imageUrl)
   const activeTool = useEditorStore((s) => s.activeTool)
   const zoom = useEditorStore((s) => s.zoom)
@@ -568,10 +570,10 @@ export function CanvasStage(): JSX.Element {
               setCropDraft(null)
             }}
           >
-            잘라내기
+            {t('잘라내기')}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setCropDraft(null)}>
-            취소
+            {t('취소')}
           </Button>
         </div>
       )}

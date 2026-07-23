@@ -49,14 +49,14 @@ export function EffectsSheet(): JSX.Element {
           <Toggle
             checked={effects.border.enabled}
             onChange={(v) => updateEffects({ border: { ...effects.border, enabled: v } })}
-            aria-label="테두리"
+            aria-label={t('테두리')}
           />
         </div>
         {effects.border.enabled && (
           <>
             <div className={styles.effectRow}>
               <span className={styles.effectSubLabel}>{t('색상')}</span>
-              <div className={styles.swatchRow} role="radiogroup" aria-label="테두리 색상">
+              <div className={styles.swatchRow} role="radiogroup" aria-label={t('테두리')}>
                 {PALETTE_ORDER.map((id) => (
                   <button
                     key={id}
@@ -75,7 +75,7 @@ export function EffectsSheet(): JSX.Element {
               <span className={styles.effectSubLabel}>{t('두께')}</span>
               <Segmented
                 size="sm"
-                aria-label="테두리 두께"
+                aria-label={t('두께')}
                 options={BORDER_WIDTHS.map(({ value, label }) => ({ value, label }))}
                 value={String(
                   BORDER_WIDTHS.find((b) => b.px === effects.border.width)?.px ?? 4
@@ -94,7 +94,7 @@ export function EffectsSheet(): JSX.Element {
           <Toggle
             checked={effects.shadow.enabled}
             onChange={(v) => updateEffects({ shadow: { enabled: v } })}
-            aria-label="그림자"
+            aria-label={t('그림자')}
           />
         </div>
 
@@ -103,7 +103,7 @@ export function EffectsSheet(): JSX.Element {
           <span className={styles.effectLabel}>{t('모서리 라운드')}</span>
           <Segmented
             size="sm"
-            aria-label="모서리 라운드"
+            aria-label={t('모서리 라운드')}
             options={radiusLevels(t).map(({ value, label }) => ({ value, label }))}
             value={String(
               radiusLevels(t).find((r) => r.px === effects.cornerRadius)?.px ?? 0

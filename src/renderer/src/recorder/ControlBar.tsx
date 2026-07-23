@@ -1,5 +1,6 @@
 /** 녹화 중 컨트롤바 — 다크 글래스 캡슐 420×72, 드래그로 이동 가능. 소유자: Recorder */
 import type { JSX } from 'react'
+import { useI18n } from '../common/i18n'
 import { formatElapsed } from './engine'
 import { IconClose, IconPause, IconPlay, IconStop } from './icons'
 import styles from './recorder.module.css'
@@ -21,6 +22,7 @@ export function ControlBar({
   onStop,
   onCancel
 }: ControlBarProps): JSX.Element {
+  const { t } = useI18n()
   return (
     <div className={styles.capsule}>
       <span className={`${styles.recDot} ${paused ? styles.recDotPaused : ''}`} />
@@ -29,7 +31,7 @@ export function ControlBar({
       <button
         type="button"
         className={styles.capsuleButton}
-        aria-label={paused ? '재개' : '일시정지'}
+        aria-label={paused ? t('재개') : t('일시정지')}
         onClick={paused ? onResume : onPause}
       >
         {paused ? <IconPlay /> : <IconPause />}
@@ -37,12 +39,12 @@ export function ControlBar({
       <button
         type="button"
         className={`${styles.capsuleButton} ${styles.stopButton}`}
-        aria-label="정지"
+        aria-label={t('정지')}
         onClick={onStop}
       >
         <IconStop />
       </button>
-      <button type="button" className={styles.capsuleButton} aria-label="녹화 취소" onClick={onCancel}>
+      <button type="button" className={styles.capsuleButton} aria-label={t('취소')} onClick={onCancel}>
         <IconClose />
       </button>
     </div>

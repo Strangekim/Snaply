@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { JSX } from 'react'
 import { Card, Input, Segmented, Toggle, ToastProvider, useToast } from '@ds/index'
 import { useTheme } from '../common/useTheme'
+import { translate } from '../common/i18n'
 import { formatFilename } from '@shared/filename'
 import type { AppSettings, HotkeySettings } from '@shared/ipc'
 import { HotkeyField } from './HotkeyField'
@@ -64,7 +65,7 @@ function SettingsScreen(): JSX.Element {
   )
 
   if (!settings) {
-    return <div style={{ padding: 'var(--space-8)', color: 'var(--text-sub)' }}>불러오는 중이에요...</div>
+    return <div style={{ padding: 'var(--space-8)', color: 'var(--text-sub)' }}>{translate('불러오는 중이에요...')}</div>
   }
 
   const t = STRINGS[settings.language as Locale] ?? STRINGS.ko

@@ -33,7 +33,7 @@ export function SettingsCard({
           <button
             type="button"
             className={styles.iconButton}
-            aria-label="닫기"
+            aria-label={t('닫기')}
             onClick={() => void window.snaply.invoke('window:close', undefined)}
           >
             <IconClose />
@@ -43,7 +43,7 @@ export function SettingsCard({
         <div className={styles.field}>
           <div className={styles.fieldLabel}>{t('녹화 대상')}</div>
           <Segmented<RecordForm['target']>
-            aria-label="녹화 대상"
+            aria-label={t('녹화 대상')}
             fullWidth
             value={form.target}
             onChange={(target) => onChange({ target })}
@@ -58,7 +58,7 @@ export function SettingsCard({
           <div className={styles.field}>
             <div className={styles.fieldLabel}>{t('디스플레이')}</div>
             <Segmented
-              aria-label="디스플레이 선택"
+              aria-label={t('디스플레이')}
               fullWidth
               size="sm"
               value={displayValue}
@@ -77,7 +77,7 @@ export function SettingsCard({
               <IconMic />
               {t('마이크')}
 </span>
-            <Toggle aria-label="마이크" checked={form.mic} onChange={(mic) => onChange({ mic })} />
+            <Toggle aria-label={t('마이크')} checked={form.mic} onChange={(mic) => onChange({ mic })} />
           </div>
           <div className={styles.toggleRow}>
             <span className={styles.toggleLabel}>
@@ -85,7 +85,7 @@ export function SettingsCard({
               {t('시스템 오디오')}
 </span>
             <Toggle
-              aria-label="시스템 오디오"
+              aria-label={t('시스템 오디오')}
               checked={form.systemAudio}
               onChange={(systemAudio) => onChange({ systemAudio })}
             />
@@ -96,7 +96,7 @@ export function SettingsCard({
               {t('웹캠')}
 </span>
             <Toggle
-              aria-label="웹캠"
+              aria-label={t('웹캠')}
               checked={form.webcam}
               onChange={(webcam) => onChange({ webcam })}
             />
@@ -106,7 +106,7 @@ export function SettingsCard({
         <div className={styles.field}>
           <div className={styles.fieldLabel}>{t('포맷')}</div>
           <Segmented<RecordForm['format']>
-            aria-label="저장 포맷"
+            aria-label={t('포맷')}
             fullWidth
             value={form.format}
             onChange={(format) => onChange({ format })}
@@ -121,7 +121,7 @@ export function SettingsCard({
           <div className={styles.field}>
             <div className={styles.fieldLabel}>{t('GIF 프레임레이트')}</div>
             <Segmented<GifFps>
-              aria-label="GIF 프레임레이트"
+              aria-label={t('GIF 프레임레이트')}
               fullWidth
               size="sm"
               value={form.fps}

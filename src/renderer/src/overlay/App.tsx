@@ -27,6 +27,8 @@ export function App(): React.JSX.Element {
   const [showCapsule, setShowCapsule] = useState(false)
   const [mode, setMode] = useState<OverlayMode>('region')
   const [interacting, setInteracting] = useState(false)
+  /** 고정 크기 캡처: 캡슐에서 지정한 W×H 선택 영역 (RegionSelect가 adjust 단계로 이어받는다) */
+  const [presetRect, setPresetRect] = useState<Rect | null>(null)
   const committing = useRef(false)
 
   const cancel = useCallback(() => {
@@ -50,16 +52,19 @@ export function App(): React.JSX.Element {
       setShowCapsule(payload.showCapsule ?? true)
       setMode(toOverlayMode(payload.mode))
       setInteracting(false)
+      setPresetRect(null)
     })
     const offCancel = window.snaply.on('event:overlayCancel', () => {
       setSession(null)
       setInteracting(false)
+      setPresetRect(null)
     })
     // 다른 창의 캡슐에서 모드가 바뀌면 이 창도 동기화
     const offMode = window.snaply.on('event:overlayMode', (m) => {
       committing.current = false
       setMode(toOverlayMode(m))
       setInteracting(false)
+      setPresetRect(null)
     })
     return () => {
       offStart()
@@ -146,9 +151,27 @@ export function App(): React.JSX.Element {
 
   const changeMode = useCallback((m: OverlayMode) => {
     setMode(m)
+    setPresetRect(null)
     // 다른 디스플레이의 오버레이 창들도 같은 모드로 전환
     void window.snaply.invoke('overlay:setMode', m)
   }, [])
+
+  // 고정 크기 캡처: W×H 영역을 이 디스플레이 중앙에 만든다 (화면보다 크면 화면 크기로 제한)
+  const applyPresetSize = useCallback(
+    (w: number, h: number) => {
+      if (!session) return
+      const b = session.displays[0].bounds
+      const width = Math.min(w, b.width)
+      const height = Math.min(h, b.height)
+      setPresetRect({
+        x: Math.round((b.width - width) / 2),
+        y: Math.round((b.height - height) / 2),
+        w: width,
+        h: height
+      })
+    },
+    [session]
+  )
 
   const commitWindow = useCallback((win: WindowSource) => {
     if (committing.current) return
@@ -205,6 +228,7 @@ export function App(): React.JSX.Element {
           onCommit={mode === 'scrolling' ? commitScrolling : commitRegion}
           onCancel={cancel}
           onInteractingChange={setInteracting}
+          initialRect={presetRect}
           commitLabel={mode === 'scrolling' ? t('⇊ 스크롤 캡처') : undefined}
           idleHint={
             mode === 'scrolling'
@@ -220,7 +244,13 @@ export function App(): React.JSX.Element {
 
       {/* 캡처 모드 캡슐 (커서 디스플레이에만, 드래그/조정 중에는 숨김) */}
       {showCapsule && !interacting && (
-        <ModeCapsule mode={mode} onChange={changeMode} onCancel={cancel} onDelaySelect={selectDelay} />
+        <ModeCapsule
+          mode={mode}
+          onChange={changeMode}
+          onCancel={cancel}
+          onDelaySelect={selectDelay}
+          onSizeApply={applyPresetSize}
+        />
       )}
     </div>
   )

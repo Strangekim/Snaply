@@ -5,6 +5,7 @@
  * - 오디오: 마이크 + 시스템 오디오(loopback) — 둘 다 있으면 AudioContext로 믹싱
  */
 import type { DisplayInfo, RecordOptions } from '@shared/ipc'
+import { translate } from '../common/i18n'
 
 export interface EngineConfig {
   options: RecordOptions
@@ -263,7 +264,7 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(reader.result as string)
-    reader.onerror = () => reject(new Error('녹화 데이터를 읽지 못했어요.'))
+    reader.onerror = () => reject(new Error(translate('녹화 데이터를 읽지 못했어요.')))
     reader.readAsDataURL(blob)
   })
 }

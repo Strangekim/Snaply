@@ -120,7 +120,7 @@ export function TrimPreview({
           className={styles.previewVideoWrap}
           onClick={togglePlay}
           role="button"
-          aria-label={playing ? '일시정지' : '재생'}
+          aria-label={playing ? t('일시정지') : t('재생')}
         >
           {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <video ref={videoRef} className={styles.previewVideo} src={blobUrl} />
@@ -145,7 +145,7 @@ export function TrimPreview({
             <input
               className={styles.trimRange}
               type="range"
-              aria-label="시작 지점"
+              aria-label={t('시작 지점')}
               min={0}
               max={max}
               step={50}
@@ -155,7 +155,7 @@ export function TrimPreview({
             <input
               className={styles.trimRange}
               type="range"
-              aria-label="끝 지점"
+              aria-label={t('끝 지점')}
               min={0}
               max={max}
               step={50}
