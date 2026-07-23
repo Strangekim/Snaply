@@ -72,7 +72,7 @@ const en: typeof ko = {
   saved: 'Saved',
   supportTitle: 'Enjoying Snaply?',
   supportDesc: 'Snaply is free and open source. A coffee fuels the next update.',
-  supportButton: '☕ Buy me a coffee'
+  supportButton: '☕ Support with a coffee'
 }
 
 export const STRINGS: Record<Locale, typeof ko> = { ko, en }
