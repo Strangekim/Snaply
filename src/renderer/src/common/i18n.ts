@@ -270,6 +270,19 @@ export const EN: Record<string, string> = {
   '가로 3칸 + 화살표': '3 horizontal frames + arrows',
   '템플릿을 만들었어요. 프레임을 선택하고 Ctrl+V로 이미지를 붙여넣어 보세요':
     'Template created. Select a frame and paste an image with Ctrl+V',
+  '캡션 카드': 'Caption card',
+  '2×2 스크린샷 모아보기': '2×2 screenshot collage',
+  '큰 이미지 1장 + 제목/설명': 'One large image + title/description',
+  '이미지를 붙여넣어 주세요 (Ctrl+V)': 'Paste an image here (Ctrl+V)',
+  '템플릿 - 비교': 'Template - Compare',
+  '템플릿 - 튜토리얼': 'Template - Tutorial',
+  '템플릿 - 타임라인': 'Template - Timeline',
+  '템플릿 - 그리드': 'Template - Grid',
+  '템플릿 - 캡션': 'Template - Caption',
+  '전': 'Before',
+  '후': 'After',
+  '제목을 입력해 주세요': 'Enter a title',
+  '설명을 입력해 주세요': 'Enter a description',
 
   // ── 오버레이 ──
   '영역': 'Region',

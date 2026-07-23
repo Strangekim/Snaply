@@ -21,11 +21,40 @@ describe('buildTemplate', () => {
     }
   })
 
-  it('비교: Before/After 라벨 2개 + 프레임 2개', () => {
+  it('비교: 전/후 라벨 2개 + 프레임 2개 (t 주입 시 번역)', () => {
     const doc = buildTemplate('compare')
     expect(doc.objects.filter((o) => o.type === 'frame')).toHaveLength(2)
     const texts = doc.objects.filter((o) => o.type === 'text')
-    expect(texts.map((t) => (t.type === 'text' ? t.text : ''))).toEqual(['Before', 'After'])
+    expect(texts.map((t) => (t.type === 'text' ? t.text : ''))).toEqual(['전', '후'])
+    // 번역 함수를 주입하면 라벨/파일명이 번역된다
+    const en = buildTemplate('compare', (ko) => ({ 전: 'Before', 후: 'After' })[ko] ?? ko)
+    const enTexts = en.objects.filter((o) => o.type === 'text')
+    expect(enTexts.map((t) => (t.type === 'text' ? t.text : ''))).toEqual(['Before', 'After'])
+  })
+
+  it('그리드: 프레임 4개, 캡션: 프레임 1개 + 텍스트 2개', () => {
+    const grid = buildTemplate('grid4')
+    expect(grid.objects.filter((o) => o.type === 'frame')).toHaveLength(4)
+    const caption = buildTemplate('caption')
+    expect(caption.objects.filter((o) => o.type === 'frame')).toHaveLength(1)
+    expect(caption.objects.filter((o) => o.type === 'text')).toHaveLength(2)
+  })
+
+  it('seed 이미지는 첫 프레임에 contain 맞춤으로 들어간다', () => {
+    const seed = { src: 'data:image/png;base64,x', width: 1120, height: 600 }
+    const doc = buildTemplate('compare', undefined, seed)
+    const frames = doc.objects.filter((o) => o.type === 'frame')
+    const images = doc.objects.filter((o) => o.type === 'image')
+    expect(images).toHaveLength(1)
+    const img = images[0]
+    const f = frames[0]
+    if (img.type !== 'image' || f.type !== 'frame') throw new Error('unexpected')
+    // contain: 긴 축이 프레임에 딱 맞고, 프레임 경계 안에 있다
+    expect(img.width).toBeLessThanOrEqual(f.width + 0.01)
+    expect(img.height).toBeLessThanOrEqual(f.height + 0.01)
+    expect(img.x).toBeGreaterThanOrEqual(f.x - 0.01)
+    expect(img.y).toBeGreaterThanOrEqual(f.y - 0.01)
+    expect(Math.abs(img.width / img.height - 1120 / 600)).toBeLessThan(0.01)
   })
 
   it('튜토리얼: 스텝 3개(1·2·3) + 프레임 3개, stepCounter=3', () => {

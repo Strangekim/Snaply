@@ -63,10 +63,11 @@ const configs: Record<WindowName, () => Electron.BrowserWindowConstructorOptions
   }),
   editor: () => ({
     ...baseOptions(),
-    width: 1280,
-    height: 860,
-    minWidth: 960,
-    minHeight: 640,
+    // 보관함(1200×800)보다 조금 작게 — 에디터가 보관함을 완전히 가리지 않도록
+    width: 1080,
+    height: 720,
+    minWidth: 900,
+    minHeight: 600,
     title: 'Snaply 에디터',
     backgroundColor: '#F9FAFB'
   }),

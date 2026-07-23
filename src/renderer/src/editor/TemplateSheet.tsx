@@ -13,7 +13,9 @@ const templates = (
 ): Array<{ kind: TemplateKind; title: string; description: string; icon: string }> => [
   { kind: 'compare', title: t('비교'), description: t('Before / After 2분할 + 라벨'), icon: '⇄' },
   { kind: 'tutorial', title: t('튜토리얼'), description: t('세로 3단계 + 번호 뱃지'), icon: '≡' },
-  { kind: 'timeline', title: t('타임라인'), description: t('가로 3칸 + 화살표'), icon: '→' }
+  { kind: 'timeline', title: t('타임라인'), description: t('가로 3칸 + 화살표'), icon: '→' },
+  { kind: 'grid4', title: t('그리드'), description: t('2×2 스크린샷 모아보기'), icon: '⊞' },
+  { kind: 'caption', title: t('캡션 카드'), description: t('큰 이미지 1장 + 제목/설명'), icon: '▭' }
 ]
 
 export function TemplateSheet(): JSX.Element {
@@ -24,7 +26,12 @@ export function TemplateSheet(): JSX.Element {
   const openGeneratedDoc = useEditorStore((s) => s.openGeneratedDoc)
 
   const create = (kind: TemplateKind): void => {
-    const tpl = buildTemplate(kind)
+    // 편집 중이던 이미지가 있으면 첫 프레임에 자동으로 넣는다
+    const s = useEditorStore.getState()
+    const seed = s.imageUrl
+      ? { src: s.imageUrl, width: s.imageWidth, height: s.imageHeight }
+      : null
+    const tpl = buildTemplate(kind, t, seed)
     const imageUrl = makeSolidBackground(tpl.width, tpl.height, tpl.bgToken)
     openGeneratedDoc({
       fileName: tpl.fileName,
