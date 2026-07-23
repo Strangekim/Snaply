@@ -29,14 +29,18 @@ function HotkeyArt(): JSX.Element {
   const isMac = window.snaply.platform === 'darwin'
   return (
     <svg width="220" height="140" viewBox="0 0 220 140" fill="none" aria-hidden="true">
-      <rect x="30" y="45" width={isMac ? 60 : 160} height="50" rx="10" fill="var(--bg-card)" stroke="var(--border-divider)" />
-      {isMac ? (
-        <>
-          <text x="60" y="76" textAnchor="middle" fill="var(--text-title)" fontSize="16" fontWeight="600" fontFamily="var(--font)">⌘⇧9</text>
-        </>
-      ) : (
-        <text x="110" y="76" textAnchor="middle" fill="var(--text-title)" fontSize="16" fontWeight="600" fontFamily="var(--font)">PrintScreen</text>
-      )}
+      <rect x="30" y="45" width={isMac ? 80 : 120} height="50" rx="10" fill="var(--bg-card)" stroke="var(--border-divider)" />
+      <text
+        x={isMac ? 70 : 90}
+        y="76"
+        textAnchor="middle"
+        fill="var(--text-title)"
+        fontSize="16"
+        fontWeight="600"
+        fontFamily="var(--font)"
+      >
+        {isMac ? '⌃⌥A' : 'Ctrl+Alt+A'}
+      </text>
       <circle cx="180" cy="40" r="16" fill="var(--primary)" />
       <path d="M173 40l5 5 9-10" stroke="var(--white)" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
@@ -65,8 +69,8 @@ function buildSteps(): StepDef[] {
     {
       title: t('단축키 하나면 돼요'),
       desc: isMac
-        ? t('Cmd+Shift+9를 누르면 어디서든 캡처가 시작돼요.\n설정에서 언제든 바꿀 수 있어요.')
-        : t('PrintScreen 키를 누르면 어디서든 캡처가 시작돼요.\n설정에서 언제든 바꿀 수 있어요.'),
+        ? t('⌃⌥A를 누르면 어디서든 캡처가 시작돼요.\n설정에서 언제든 바꿀 수 있어요.')
+        : t('Ctrl+Alt+A를 누르면 어디서든 캡처가 시작돼요.\n설정에서 언제든 바꿀 수 있어요.'),
       art: <HotkeyArt />
     },
     isMac

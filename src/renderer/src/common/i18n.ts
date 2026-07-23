@@ -359,10 +359,10 @@ export const EN: Record<string, string> = {
   '시작하기': 'Get started',
   'Snaply는 캡처, 편집, 녹화, 텍스트 추출까지\n한 번에 되는 화면 캡처 앱이에요.':
     'Snaply captures, edits, records,\nand extracts text — all in one app.',
-  'Cmd+Shift+9를 누르면 어디서든 캡처가 시작돼요.\n설정에서 언제든 바꿀 수 있어요.':
-    'Press Cmd+Shift+9 to capture from anywhere.\nYou can change it in Settings anytime.',
-  'PrintScreen 키를 누르면 어디서든 캡처가 시작돼요.\n설정에서 언제든 바꿀 수 있어요.':
-    'Press PrintScreen to capture from anywhere.\nYou can change it in Settings anytime.',
+  '⌃⌥A를 누르면 어디서든 캡처가 시작돼요.\n설정에서 언제든 바꿀 수 있어요.':
+    'Press ⌃⌥A to capture from anywhere.\nYou can change it in Settings anytime.',
+  'Ctrl+Alt+A를 누르면 어디서든 캡처가 시작돼요.\n설정에서 언제든 바꿀 수 있어요.':
+    'Press Ctrl+Alt+A to capture from anywhere.\nYou can change it in Settings anytime.',
   '시스템 설정 > 개인정보 보호 및 보안 > 화면 기록에서\nSnaply를 허용해 주세요. 허용해야 화면이 캡처돼요.':
     'Allow Snaply in System Settings >\nPrivacy & Security > Screen Recording.',
   '캡처한 이미지는 보관함에 자동으로 쌓이고,\n검색으로 언제든 다시 찾을 수 있어요.':
