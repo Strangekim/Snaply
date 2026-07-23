@@ -18,7 +18,8 @@ const defaults = (): AppSettings => ({
   theme: 'system',
   autoStart: false,
   afterCapture: 'editor',
-  onboardingDone: false
+  onboardingDone: false,
+  savedRegions: []
 })
 
 let cached: AppSettings | null = null

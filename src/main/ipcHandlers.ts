@@ -33,7 +33,12 @@ export function registerCoreIpc(): void {
     const next = setSettings(patch)
     if (JSON.stringify(next.hotkeys) !== prevHotkeys) registerShortcuts()
     if (next.autoStart !== prev.autoStart) applyAutoStart(next.autoStart)
-    if (next.language !== prev.language) refreshTrayMenu()
+    if (
+      next.language !== prev.language ||
+      JSON.stringify(next.savedRegions ?? []) !== JSON.stringify(prev.savedRegions ?? [])
+    ) {
+      refreshTrayMenu()
+    }
     broadcast('event:settingsChanged', next)
     return next
   })

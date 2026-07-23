@@ -43,6 +43,7 @@ if (!gotLock) {
 
     createTray({
       onCapture: (mode) => void startCapture({ mode }),
+      onCaptureRegion: (region) => void startCapture({ mode: 'region', region }),
       onRecord: () => showWindow('recorder')
     })
 

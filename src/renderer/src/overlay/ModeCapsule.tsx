@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useI18n } from '../common/i18n'
 import { glassButton, glassCapsule } from './glass'
+import type { SavedRegion } from '@shared/ipc'
 import type { OverlayMode } from './types'
 
 const SEGMENTS: Array<{ id: OverlayMode; label: string }> = [
@@ -31,6 +32,11 @@ interface ModeCapsuleProps {
   onDelaySelect: (seconds: number) => void
   /** 고정 크기 적용: W×H 선택 영역을 화면 중앙에 생성 (영역/스크롤 모드) */
   onSizeApply?: (w: number, h: number) => void
+  /** 저장된 캡처 영역 목록 + 액션 */
+  savedRegions?: SavedRegion[]
+  onPickSavedRegion?: (saved: SavedRegion) => void
+  onCaptureSavedNow?: (saved: SavedRegion) => void
+  onDeleteSavedRegion?: (id: string) => void
 }
 
 /** 오버레이 상단 중앙의 캡처 모드 전환 캡슐 툴바 (+ 지연 캡처 타이머) */
@@ -39,11 +45,16 @@ export function ModeCapsule({
   onChange,
   onCancel,
   onDelaySelect,
-  onSizeApply
+  onSizeApply,
+  savedRegions = [],
+  onPickSavedRegion,
+  onCaptureSavedNow,
+  onDeleteSavedRegion
 }: ModeCapsuleProps): React.JSX.Element {
   const { t } = useI18n()
   const [delayOpen, setDelayOpen] = useState(false)
   const [sizeOpen, setSizeOpen] = useState(false)
+  const [savedOpen, setSavedOpen] = useState(false)
   const [widthInput, setWidthInput] = useState('300')
   const [heightInput, setHeightInput] = useState('400')
 
@@ -204,6 +215,96 @@ export function ModeCapsule({
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 저장된 캡처 영역: ★ → 목록 팝오버 (복원 / ⚡ 즉시 캡처 / ✕ 삭제) */}
+      {(mode === 'region' || mode === 'scrolling') && savedRegions.length > 0 && (
+        <div style={{ position: 'relative' }}>
+          <button
+            type="button"
+            className="ov-hover"
+            title={t('저장한 영역')}
+            style={{
+              ...glassButton,
+              padding: '8px 12px',
+              color: savedOpen ? 'var(--overlay-text)' : 'var(--overlay-text-sub)'
+            }}
+            onClick={() => {
+              setSavedOpen((v) => !v)
+              setSizeOpen(false)
+              setDelayOpen(false)
+            }}
+          >
+            ★
+          </button>
+          {savedOpen && (
+            <div
+              style={{
+                ...glassCapsule,
+                position: 'absolute',
+                top: 'calc(100% + 12px)',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 'var(--space-1)',
+                padding: 'var(--space-3)',
+                borderRadius: 16,
+                zIndex: 55,
+                minWidth: 300,
+                maxHeight: 320,
+                overflowY: 'auto'
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              {savedRegions.map((saved) => (
+                <div key={saved.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+                  <button
+                    type="button"
+                    className="ov-hover"
+                    title={t('이 영역을 불러와요')}
+                    style={{
+                      ...glassButton,
+                      flex: 1,
+                      textAlign: 'left',
+                      color: 'var(--overlay-text)',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}
+                    onClick={() => {
+                      setSavedOpen(false)
+                      onPickSavedRegion?.(saved)
+                    }}
+                  >
+                    {saved.name}
+                  </button>
+                  <button
+                    type="button"
+                    className="ov-hover"
+                    title={t('바로 캡처해요')}
+                    style={{ ...glassButton, padding: '8px 10px', color: 'var(--overlay-text-sub)' }}
+                    onClick={() => {
+                      setSavedOpen(false)
+                      onCaptureSavedNow?.(saved)
+                    }}
+                  >
+                    ⚡
+                  </button>
+                  <button
+                    type="button"
+                    className="ov-hover"
+                    title={t('삭제해요')}
+                    style={{ ...glassButton, padding: '8px 10px', color: 'var(--overlay-text-sub)' }}
+                    onClick={() => onDeleteSavedRegion?.(saved.id)}
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
             </div>
           )}
         </div>

@@ -83,6 +83,8 @@ interface RegionSelectProps {
   onPlacePreset?: (rect: Rect) => void
   /** 조정 단계의 현재 선택 영역 변경 알림 (지연 캡처가 이 영역을 자동 캡처하는 데 쓴다) */
   onSelChange?: (rect: Rect | null) => void
+  /** 현재 영역을 저장 (반복 캡처 프리셋) */
+  onSaveRegion?: (rect: Rect) => void
 }
 
 /** 영역 선택: 십자선 + 돋보기 → 드래그 → 조정 단계(8방향 핸들 + 이동 + 액션바) */
@@ -98,10 +100,13 @@ export function RegionSelect({
   resetSignal,
   pendingSize,
   onPlacePreset,
-  onSelChange
+  onSelChange,
+  onSaveRegion
 }: RegionSelectProps): React.JSX.Element {
   const { t } = useI18n()
   const [phase, setPhase] = useState<Phase>('idle')
+  /** 방금 저장했다는 짧은 피드백 */
+  const [savedFlash, setSavedFlash] = useState(false)
   const [mouse, setMouse] = useState<{ x: number; y: number } | null>(null)
   const [sel, setSel] = useState<Rect | null>(null)
   const dragStart = useRef<{ x: number; y: number } | null>(null)
@@ -465,6 +470,31 @@ export function RegionSelect({
           >
             {t('📋 클립보드')}
           </button>
+          {onSaveRegion && (
+            <button
+              type="button"
+              className="ov-hover"
+              title={t('이 영역을 저장해 두고 반복 캡처해요')}
+              style={{
+                border: 'none',
+                font: 'inherit',
+                fontSize: 'var(--text-body-size)',
+                cursor: 'pointer',
+                borderRadius: 'var(--radius-capsule)',
+                padding: '8px 16px',
+                background: 'transparent',
+                color: savedFlash ? 'var(--primary)' : 'var(--overlay-text)',
+                whiteSpace: 'nowrap'
+              }}
+              onClick={() => {
+                onSaveRegion(sel)
+                setSavedFlash(true)
+                window.setTimeout(() => setSavedFlash(false), 1500)
+              }}
+            >
+              {savedFlash ? t('★ 저장됨') : t('☆ 영역 저장')}
+            </button>
+          )}
           <button
             type="button"
             className="ov-hover"

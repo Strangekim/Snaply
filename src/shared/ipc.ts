@@ -123,9 +123,19 @@ export interface HotkeySettings {
   record: string
 }
 
+/** 저장된 캡처 영역 — 같은 지점을 반복 캡처하기 위한 프리셋 */
+export interface SavedRegion {
+  id: string
+  name: string
+  rect: RegionRect
+  createdAt: number
+}
+
 export interface AppSettings {
   hotkeys: HotkeySettings
   savePath: string
+  /** 저장된 캡처 영역 목록 (최대 10개) */
+  savedRegions?: SavedRegion[]
   filenamePattern: string // 예: 'snaply-{yyyy}{MM}{dd}-{HH}{mm}{ss}'
   language: 'ko' | 'en'
   theme: 'light' | 'dark' | 'system'

@@ -107,6 +107,11 @@ export async function startCapture(options: CaptureOptions): Promise<void> {
     startVisibleCountdown(options, delay)
     return
   }
+  // 지연 없이 영역이 지정된 경우(저장된 영역 즉시 캡처, 트레이 반복 캡처) — 오버레이 없이 바로 찍는다
+  if (options.region) {
+    await captureRegionNow(options.region, options)
+    return
+  }
   await beginCapture(options)
 }
 
@@ -224,40 +229,46 @@ function startVisibleCountdown(options: CaptureOptions, delayMs: number): void {
  * - 전체 화면 + 대상 미지정이면 커서가 있는 모니터를 자동 캡처
  * - 그 외에는 캡처 오버레이를 다시 연다 (메뉴/툴팁 준비용 지연)
  */
-async function finishDelayedCapture(options: CaptureOptions): Promise<void> {
+/** 오버레이 없이 지정 영역을 즉시 캡처 (저장된 영역/타이머 자동 캡처 공용) */
+async function captureRegionNow(region: RegionRect, options: CaptureOptions): Promise<void> {
   sessionOptions = options
-
-  if (options.region) {
-    await hideOverlayBeforeGrab()
-    if (options.mode === 'scrolling') {
-      frozenFrames = new Map()
-      const { buffer, width, height } = await captureScrollingRegion(options.region, (p) =>
-        broadcast('event:scrollProgress', p)
-      )
-      const result: CaptureResult = {
-        id: randomUUID(),
-        filePath: savePngBuffer(buffer),
-        width,
-        height,
-        mode: 'scrolling',
-        createdAt: Date.now()
-      }
-      await afterCapture(result, options)
-      return
-    }
-    // 일반 영역: 지금 화면을 새로 찍어 지정 영역만 크롭
-    const frames = await grabAllDisplayFrames()
-    frozenFrames = new Map(frames.map((f) => [f.displayId, f.image]))
-    const { buffer, width, height } = cropFrame(options.region)
+  await hideOverlayBeforeGrab()
+  if (options.mode === 'scrolling') {
+    frozenFrames = new Map()
+    const { buffer, width, height } = await captureScrollingRegion(region, (p) =>
+      broadcast('event:scrollProgress', p)
+    )
     const result: CaptureResult = {
       id: randomUUID(),
       filePath: savePngBuffer(buffer),
       width,
       height,
-      mode: 'region',
+      mode: 'scrolling',
       createdAt: Date.now()
     }
     await afterCapture(result, options)
+    return
+  }
+  // 일반 영역: 지금 화면을 새로 찍어 지정 영역만 크롭
+  const frames = await grabAllDisplayFrames()
+  frozenFrames = new Map(frames.map((f) => [f.displayId, f.image]))
+  const { buffer, width, height } = cropFrame(region)
+  const result: CaptureResult = {
+    id: randomUUID(),
+    filePath: savePngBuffer(buffer),
+    width,
+    height,
+    mode: 'region',
+    createdAt: Date.now()
+  }
+  await afterCapture(result, options)
+}
+
+async function finishDelayedCapture(options: CaptureOptions): Promise<void> {
+  sessionOptions = options
+
+  if (options.region) {
+    await captureRegionNow(options.region, options)
     return
   }
 

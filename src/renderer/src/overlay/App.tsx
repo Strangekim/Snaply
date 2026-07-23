@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useI18n } from '../common/i18n'
-import type { CaptureMode, RegionRect } from '@shared/ipc'
+import type { CaptureMode, RegionRect, SavedRegion } from '@shared/ipc'
 import { overlayCss } from './glass'
 import { DisplayPicker } from './DisplayPicker'
 import { ModeCapsule } from './ModeCapsule'
@@ -33,6 +33,8 @@ export function App(): React.JSX.Element {
   const [pendingSize, setPendingSize] = useState<{ w: number; h: number } | null>(null)
   /** 지연 캡처 카운트다운 (남은 초) */
   const [countdown, setCountdown] = useState(0)
+  /** 저장된 캡처 영역 (설정에 영구 저장) */
+  const [savedRegions, setSavedRegions] = useState<SavedRegion[]>([])
   /** 카운트다운 중 캡처 예정 영역 포커스 테두리 (이 창 로컬 좌표) */
   const [focusRect, setFocusRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
   /** 다른 모니터에서 이동 중인 선택 영역의 미리보기 (이 창 로컬 좌표) */
@@ -84,6 +86,9 @@ export function App(): React.JSX.Element {
     const offCountdown = window.snaply.on('event:overlayCountdown', setCountdown)
     // 카운트다운 중 캡처 예정 영역 포커스 (해당 디스플레이 창만 수신)
     const offFocus = window.snaply.on('event:overlayFocusRegion', setFocusRect)
+    // 저장된 영역 목록 로드 + 변경 구독
+    void window.snaply.invoke('settings:get', undefined).then((s) => setSavedRegions(s.savedRegions ?? []))
+    const offSettings = window.snaply.on('event:settingsChanged', (s) => setSavedRegions(s.savedRegions ?? []))
     // 다른 창의 캡슐에서 모드가 바뀌면 이 창도 동기화
     const offMode = window.snaply.on('event:overlayMode', (m) => {
       committing.current = false
@@ -131,6 +136,7 @@ export function App(): React.JSX.Element {
       offPreset()
       offCountdown()
       offFocus()
+      offSettings()
       offMode()
       offRect()
     }
@@ -261,6 +267,79 @@ export function App(): React.JSX.Element {
   // 고정 크기 캡처: 배치 모드 시작 — 모든 모니터에서 W×H 사각형이 마우스를 따라다닌다
   const applyPresetSize = useCallback((w: number, h: number) => {
     void window.snaply.invoke('overlay:armPreset', { w, h })
+  }, [])
+
+  // ── 저장된 캡처 영역 ──
+  /** 현재 조정 중인 영역을 저장 (최대 10개) */
+  const saveCurrentRegion = useCallback((rect: Rect) => {
+    const current = sessionRef.current
+    if (!current) return
+    const d = current.displays[0]
+    const region: RegionRect = {
+      x: Math.max(0, Math.round(rect.x)),
+      y: Math.max(0, Math.round(rect.y)),
+      width: Math.round(rect.w),
+      height: Math.round(rect.h),
+      displayId: d.id
+    }
+    void window.snaply.invoke('settings:get', undefined).then((s) => {
+      const list = s.savedRegions ?? []
+      const entry: SavedRegion = {
+        id: `${Date.now()}-${Math.round(Math.random() * 1e6)}`,
+        name: `${translateName(list.length + 1)}`,
+        rect: region,
+        createdAt: Date.now()
+      }
+      void window.snaply.invoke('settings:set', { savedRegions: [...list, entry].slice(-10) })
+    })
+
+    function translateName(n: number): string {
+      return `${t('영역')} ${n} · ${region.width}×${region.height}`
+    }
+  }, [t])
+
+  /** 저장된 영역 복원 — 내 디스플레이면 바로 조정 단계로, 아니면 핸드오프로 그 모니터에 */
+  const pickSavedRegion = useCallback((saved: SavedRegion) => {
+    const current = sessionRef.current
+    if (!current) return
+    const r = saved.rect
+    if (r.displayId === current.displays[0].id) {
+      setPresetRect({ x: r.x, y: r.y, w: r.width, h: r.height })
+      return
+    }
+    // 다른 모니터: 절대 좌표로 변환해 final 핸드오프 → 그 모니터 창이 이어받는다
+    void window.snaply.invoke('capture:listDisplays', undefined).then((displays) => {
+      const target = displays.find((d) => d.id === r.displayId)
+      if (!target) {
+        // 저장 당시의 모니터가 없어졌으면 내 화면 중앙에 복원
+        const b = current.displays[0].bounds
+        setPresetRect({
+          x: Math.round((b.width - r.width) / 2),
+          y: Math.round((b.height - r.height) / 2),
+          w: Math.min(r.width, b.width),
+          h: Math.min(r.height, b.height)
+        })
+        return
+      }
+      void window.snaply.invoke('overlay:syncRect', {
+        rect: { x: target.bounds.x + r.x, y: target.bounds.y + r.y, width: r.width, height: r.height },
+        final: true,
+        sourceDisplayId: current.displays[0].id
+      })
+    })
+  }, [])
+
+  /** 저장된 영역 즉시 캡처 (오버레이 없이) */
+  const captureSavedNow = useCallback((saved: SavedRegion) => {
+    void window.snaply.invoke('capture:start', { mode: 'region', region: saved.rect })
+  }, [])
+
+  const deleteSavedRegion = useCallback((id: string) => {
+    void window.snaply.invoke('settings:get', undefined).then((s) => {
+      void window.snaply.invoke('settings:set', {
+        savedRegions: (s.savedRegions ?? []).filter((r) => r.id !== id)
+      })
+    })
   }, [])
 
   // 배치 확정(클릭) → 이 창에서 조정 단계로, 다른 창들은 배치 모드 해제
@@ -401,6 +480,7 @@ export function App(): React.JSX.Element {
           onSyncRect={syncRect}
           resetSignal={resetSignal}
           onSelChange={handleSelChange}
+          onSaveRegion={saveCurrentRegion}
           commitLabel={mode === 'scrolling' ? t('⇊ 스크롤 캡처') : undefined}
           idleHint={
             mode === 'scrolling'
@@ -453,6 +533,10 @@ export function App(): React.JSX.Element {
           onCancel={cancel}
           onDelaySelect={selectDelay}
           onSizeApply={applyPresetSize}
+          savedRegions={savedRegions}
+          onPickSavedRegion={pickSavedRegion}
+          onCaptureSavedNow={captureSavedNow}
+          onDeleteSavedRegion={deleteSavedRegion}
         />
       )}
     </div>

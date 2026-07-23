@@ -2,12 +2,15 @@ import { app, Menu, nativeImage, Tray } from 'electron'
 import { join } from 'path'
 import { showWindow } from '../windows'
 import { getSettings } from '../settings'
+import type { RegionRect } from '@shared/ipc'
 
 let tray: Tray | null = null
 let savedHandlers: TrayHandlers | null = null
 
 interface TrayHandlers {
   onCapture: (mode: 'region' | 'window' | 'fullscreen' | 'all-in-one') => void
+  /** 저장된 영역 즉시 캡처 */
+  onCaptureRegion: (region: RegionRect) => void
   onRecord: () => void
 }
 
@@ -20,6 +23,7 @@ const LABELS = {
     window: '창 캡처',
     fullscreen: '전체 화면 캡처',
     record: '화면 녹화',
+    savedRegions: '저장한 영역 캡처',
     library: '보관함 열기',
     settings: '설정',
     quit: '종료'
@@ -31,6 +35,7 @@ const LABELS = {
     window: 'Window capture',
     fullscreen: 'Full screen capture',
     record: 'Screen recording',
+    savedRegions: 'Capture saved region',
     library: 'Open library',
     settings: 'Settings',
     quit: 'Quit'
@@ -39,9 +44,25 @@ const LABELS = {
 
 function buildMenu(handlers: TrayHandlers): void {
   if (!tray) return
-  const lang = getSettings().language
-  const L = LABELS[lang] ?? LABELS.ko
+  const settings = getSettings()
+  const L = LABELS[settings.language] ?? LABELS.ko
   tray.setToolTip(L.tooltip)
+
+  const saved = settings.savedRegions ?? []
+  const savedMenu: Electron.MenuItemConstructorOptions[] =
+    saved.length > 0
+      ? [
+          {
+            label: L.savedRegions,
+            submenu: saved.map((r) => ({
+              label: `${r.name} (${Math.round(r.rect.width)}×${Math.round(r.rect.height)})`,
+              click: () => handlers.onCaptureRegion(r.rect)
+            }))
+          },
+          { type: 'separator' }
+        ]
+      : []
+
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: L.capture, click: () => handlers.onCapture('all-in-one') },
@@ -49,6 +70,7 @@ function buildMenu(handlers: TrayHandlers): void {
       { label: L.window, click: () => handlers.onCapture('window') },
       { label: L.fullscreen, click: () => handlers.onCapture('fullscreen') },
       { type: 'separator' },
+      ...savedMenu,
       { label: L.record, click: () => handlers.onRecord() },
       { type: 'separator' },
       { label: L.library, click: () => showWindow('library') },
