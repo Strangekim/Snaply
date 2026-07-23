@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import type { JSX } from 'react'
+import { useI18n } from '../common/i18n'
 import type { RegionRect } from '@shared/ipc'
 import styles from './recorder.module.css'
 
@@ -36,6 +37,7 @@ function toRect(drag: DragState): { x: number; y: number; width: number; height:
 }
 
 export function RegionSelect({ displayId, onDone, onCancel }: RegionSelectProps): JSX.Element {
+  const { t } = useI18n()
   const [drag, setDrag] = useState<DragState | null>(null)
 
   useEffect(() => {
@@ -90,7 +92,7 @@ export function RegionSelect({ displayId, onDone, onCancel }: RegionSelectProps)
           </div>
         </div>
       )}
-      <div className={styles.selectHint}>드래그해서 녹화할 영역을 선택해 주세요 · ESC 취소</div>
+      <div className={styles.selectHint}>{t('드래그해서 녹화할 영역을 선택해 주세요 · ESC 취소')}</div>
     </div>
   )
 }

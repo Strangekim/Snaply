@@ -4,13 +4,15 @@
  */
 import type { JSX } from 'react'
 import { BottomSheet, Segmented, Toggle } from '@ds/index'
+import { useI18n } from '../common/i18n'
 import styles from './editor.module.css'
 import { useEditorStore } from './store'
 import { normalizeEffects } from './effects'
 import { COLOR_TOKEN, PALETTE_ORDER } from './palette'
 
-const RADIUS_LEVELS: Array<{ value: string; label: string; px: number }> = [
-  { value: '0', label: '없음', px: 0 },
+// 로케일 변경이 반영되도록 렌더 시점에 라벨을 만든다
+const radiusLevels = (t: (ko: string) => string): Array<{ value: string; label: string; px: number }> => [
+  { value: '0', label: t('없음'), px: 0 },
   { value: '8', label: 'S', px: 8 },
   { value: '16', label: 'M', px: 16 },
   { value: '28', label: 'L', px: 28 }
@@ -22,14 +24,16 @@ const BORDER_WIDTHS: Array<{ value: string; label: string; px: number }> = [
   { value: '8', label: 'L', px: 8 }
 ]
 
-const TORN_SIDES = [
-  { key: 'top', label: '위' },
-  { key: 'bottom', label: '아래' },
-  { key: 'left', label: '왼쪽' },
-  { key: 'right', label: '오른쪽' }
-] as const
+const tornSides = (t: (ko: string) => string) =>
+  [
+    { key: 'top', label: t('위') },
+    { key: 'bottom', label: t('아래') },
+    { key: 'left', label: t('왼쪽') },
+    { key: 'right', label: t('오른쪽') }
+  ] as const
 
 export function EffectsSheet(): JSX.Element {
+  const { t } = useI18n()
   const open = useEditorStore((s) => s.sheet === 'effects')
   const setSheet = useEditorStore((s) => s.setSheet)
   const rawEffects = useEditorStore((s) => s.history.present.effects)
@@ -37,11 +41,11 @@ export function EffectsSheet(): JSX.Element {
   const effects = normalizeEffects(rawEffects)
 
   return (
-    <BottomSheet open={open} onClose={() => setSheet(null)} title="이미지 효과">
+    <BottomSheet open={open} onClose={() => setSheet(null)} title={t('이미지 효과')}>
       <div className={styles.effectsBody}>
         {/* 테두리 */}
         <div className={styles.effectRow}>
-          <span className={styles.effectLabel}>테두리</span>
+          <span className={styles.effectLabel}>{t('테두리')}</span>
           <Toggle
             checked={effects.border.enabled}
             onChange={(v) => updateEffects({ border: { ...effects.border, enabled: v } })}
@@ -51,7 +55,7 @@ export function EffectsSheet(): JSX.Element {
         {effects.border.enabled && (
           <>
             <div className={styles.effectRow}>
-              <span className={styles.effectSubLabel}>색상</span>
+              <span className={styles.effectSubLabel}>{t('색상')}</span>
               <div className={styles.swatchRow} role="radiogroup" aria-label="테두리 색상">
                 {PALETTE_ORDER.map((id) => (
                   <button
@@ -68,7 +72,7 @@ export function EffectsSheet(): JSX.Element {
               </div>
             </div>
             <div className={styles.effectRow}>
-              <span className={styles.effectSubLabel}>두께</span>
+              <span className={styles.effectSubLabel}>{t('두께')}</span>
               <Segmented
                 size="sm"
                 aria-label="테두리 두께"
@@ -86,7 +90,7 @@ export function EffectsSheet(): JSX.Element {
 
         {/* 그림자 */}
         <div className={styles.effectRow}>
-          <span className={styles.effectLabel}>그림자</span>
+          <span className={styles.effectLabel}>{t('그림자')}</span>
           <Toggle
             checked={effects.shadow.enabled}
             onChange={(v) => updateEffects({ shadow: { enabled: v } })}
@@ -96,13 +100,13 @@ export function EffectsSheet(): JSX.Element {
 
         {/* 모서리 라운드 */}
         <div className={styles.effectRow}>
-          <span className={styles.effectLabel}>모서리 라운드</span>
+          <span className={styles.effectLabel}>{t('모서리 라운드')}</span>
           <Segmented
             size="sm"
             aria-label="모서리 라운드"
-            options={RADIUS_LEVELS.map(({ value, label }) => ({ value, label }))}
+            options={radiusLevels(t).map(({ value, label }) => ({ value, label }))}
             value={String(
-              RADIUS_LEVELS.find((r) => r.px === effects.cornerRadius)?.px ?? 0
+              radiusLevels(t).find((r) => r.px === effects.cornerRadius)?.px ?? 0
             )}
             onChange={(v) => updateEffects({ cornerRadius: Number(v) })}
           />
@@ -110,9 +114,9 @@ export function EffectsSheet(): JSX.Element {
 
         {/* 찢어진 가장자리 */}
         <div className={styles.effectRow}>
-          <span className={styles.effectLabel}>찢어진 가장자리</span>
+          <span className={styles.effectLabel}>{t('찢어진 가장자리')}</span>
           <div className={styles.tornToggles}>
-            {TORN_SIDES.map(({ key, label }) => (
+            {tornSides(t).map(({ key, label }) => (
               <label key={key} className={styles.tornToggle}>
                 <span>{label}</span>
                 <Toggle

@@ -4,6 +4,7 @@ import type { JSX } from 'react'
 import { BottomSheet, Button, Input, Segmented, SheetItem, ToastProvider, useToast } from '@ds/index'
 import type { ExportFormat, LibraryFolder, LibraryItem } from '@shared/ipc'
 import { useTheme } from '../common/useTheme'
+import { useI18n } from '../common/i18n'
 import { Onboarding } from '../onboarding/Onboarding'
 import styles from './library.module.css'
 import { useDebounced, useLibrary, type SidebarFilter } from './useLibrary'
@@ -18,6 +19,7 @@ type BatchFormat = 'png' | 'jpg' | 'webp'
 // ───────────────────────── 빈 상태 ─────────────────────────
 
 function EmptyState({ searching }: { searching: boolean }): JSX.Element {
+  const { t } = useI18n()
   return (
     <div className={styles.empty}>
       <svg width="140" height="110" viewBox="0 0 140 110" fill="none" aria-hidden="true">
@@ -29,9 +31,9 @@ function EmptyState({ searching }: { searching: boolean }): JSX.Element {
         <circle cx="106" cy="44" r="3" fill="var(--yellow-500)" />
       </svg>
       <div>
-        <div className={styles.emptyTitle}>{searching ? '검색 결과가 없어요' : '아직 캡처가 없어요'}</div>
+        <div className={styles.emptyTitle}>{searching ? t('검색 결과가 없어요') : t('아직 캡처가 없어요')}</div>
         <div className={styles.emptyDesc}>
-          {searching ? '다른 검색어로 다시 찾아보세요.' : '캡처하기 버튼이나 단축키로 첫 캡처를 시작해 보세요.'}
+          {searching ? t('다른 검색어로 다시 찾아보세요.') : t('캡처하기 버튼이나 단축키로 첫 캡처를 시작해 보세요.')}
         </div>
       </div>
     </div>
@@ -41,13 +43,14 @@ function EmptyState({ searching }: { searching: boolean }): JSX.Element {
 // ───────────────────────── 최근 캡처 스트립 ─────────────────────────
 
 function RecentStrip({ items, onOpen }: { items: LibraryItem[]; onOpen: (item: LibraryItem) => void }): JSX.Element | null {
+  const { t } = useI18n()
   if (items.length === 0) return null
   return (
     <>
-      <h2 className={styles.contentTitle}>최근 캡처</h2>
+      <h2 className={styles.contentTitle}>{t('최근 캡처')}</h2>
       <div className={styles.strip}>
         {items.map((item) => (
-          <button key={item.id} type="button" className={styles.stripCard} onClick={() => onOpen(item)} title="편집해요">
+          <button key={item.id} type="button" className={styles.stripCard} onClick={() => onOpen(item)} title={t('편집해요')}>
             <img
               className={styles.stripThumb}
               src={toSnaplyFileUrl(item.thumbPath ?? item.filePath)}
@@ -109,6 +112,7 @@ function TimelineView({
 
 function LibraryScreen(): JSX.Element {
   const { toast } = useToast()
+  const { t } = useI18n()
   const [filter, setFilter] = useState<SidebarFilter>({ type: 'all' })
   const [view, setView] = useState<ViewMode>('grid')
   const [searchInput, setSearchInput] = useState('')
@@ -148,9 +152,9 @@ function LibraryScreen(): JSX.Element {
   // 캡처 완료 토스트
   useEffect(() => {
     return window.snaply.on('event:captureCompleted', () => {
-      toast('캡처했어요', { type: 'success' })
+      toast(t('캡처했어요'), { type: 'success' })
     })
-  }, [toast])
+  }, [toast, t])
 
   // ── 항목 액션 ──
   const togglePin = useCallback((item: LibraryItem) => {
@@ -172,8 +176,8 @@ function LibraryScreen(): JSX.Element {
     (item: LibraryItem) => {
       void window.snaply
         .invoke('clipboard:writeImage', { filePath: item.filePath })
-        .then(() => toast('클립보드에 복사했어요'))
-        .catch(() => toast('복사하지 못했어요', { type: 'error' }))
+        .then(() => toast(t('클립보드에 복사했어요')))
+        .catch(() => toast(t('복사하지 못했어요'), { type: 'error' }))
     },
     [toast]
   )
@@ -186,8 +190,8 @@ function LibraryScreen(): JSX.Element {
     if (!deleteTarget) return
     void window.snaply
       .invoke('library:delete', deleteTarget.id)
-      .then(() => toast('삭제했어요'))
-      .catch(() => toast('삭제하지 못했어요', { type: 'error' }))
+      .then(() => toast(t('삭제했어요')))
+      .catch(() => toast(t('삭제하지 못했어요'), { type: 'error' }))
     setDeleteTarget(null)
   }, [deleteTarget, toast])
 
@@ -196,7 +200,7 @@ function LibraryScreen(): JSX.Element {
       if (!moveTarget) return
       void window.snaply
         .invoke('library:update', { id: moveTarget.id, patch: { folderId } })
-        .then(() => toast(folderId === '' ? '폴더에서 꺼냈어요' : '폴더로 옮겼어요'))
+        .then(() => toast(folderId === '' ? t('폴더에서 꺼냈어요') : t('폴더로 옮겼어요')))
       setMoveTarget(null)
     },
     [moveTarget, toast]
@@ -224,7 +228,7 @@ function LibraryScreen(): JSX.Element {
       })
       .catch(() => {
         setOcrLoading(false)
-        setOcrError('텍스트를 추출하지 못했어요. 잠시 후 다시 시도해 주세요.')
+        setOcrError(t('텍스트를 추출하지 못했어요. 잠시 후 다시 시도해 주세요.'))
       })
   }, [])
 
@@ -240,8 +244,8 @@ function LibraryScreen(): JSX.Element {
     if (!ocrText) return
     void window.snaply
       .invoke('clipboard:writeText', ocrText)
-      .then(() => toast('텍스트를 복사했어요'))
-      .catch(() => toast('복사하지 못했어요', { type: 'error' }))
+      .then(() => toast(t('텍스트를 복사했어요')))
+      .catch(() => toast(t('복사하지 못했어요'), { type: 'error' }))
   }, [ocrText, toast])
 
   // ── 다중 선택 / 배치 내보내기 ──
@@ -284,12 +288,12 @@ function LibraryScreen(): JSX.Element {
         format: batchFormat
       })
       .then(({ outputDir, count }) => {
-        toast(`${count}개를 내보냈어요`, { type: 'success' })
+        toast(t('{n}개를 내보냈어요', { n: count }), { type: 'success' })
         void window.snaply.invoke('file:showInFolder', outputDir)
         setBatchSheetOpen(false)
         exitSelectMode()
       })
-      .catch(() => toast('내보내지 못했어요', { type: 'error' }))
+      .catch(() => toast(t('내보내지 못했어요'), { type: 'error' }))
       .finally(() => setBatchRunning(false))
   }, [batchWidth, batchWatermark, batchFormat, selectedIds, toast, exitSelectMode])
 
@@ -297,13 +301,13 @@ function LibraryScreen(): JSX.Element {
   const createFolder = useCallback(() => {
     const name = newFolderName.trim()
     if (!name) {
-      toast('폴더 이름을 입력해 주세요', { type: 'error' })
+      toast(t('폴더 이름을 입력해 주세요'), { type: 'error' })
       return
     }
     void window.snaply
       .invoke('library:createFolder', name)
-      .then(() => toast('폴더를 만들었어요'))
-      .catch(() => toast('폴더를 만들지 못했어요', { type: 'error' }))
+      .then(() => toast(t('폴더를 만들었어요')))
+      .catch(() => toast(t('폴더를 만들지 못했어요'), { type: 'error' }))
     setNewFolderName('')
     setFolderSheetOpen(false)
   }, [newFolderName, toast])
@@ -313,7 +317,7 @@ function LibraryScreen(): JSX.Element {
     const target = folderDeleteTarget
     void window.snaply
       .invoke('library:deleteFolder', target.id)
-      .then(() => toast('폴더를 삭제했어요'))
+      .then(() => toast(t('폴더를 삭제했어요')))
     setFolderDeleteTarget(null)
     setFilter((prev) => (prev.type === 'folder' && prev.folderId === target.id ? { type: 'all' } : prev))
   }, [folderDeleteTarget, toast])
@@ -325,12 +329,12 @@ function LibraryScreen(): JSX.Element {
       void window.snaply
         .invoke('export:run', { itemId: item.id, format })
         .then(({ filePath }) => {
-          toast('내보냈어요', { type: 'success' })
+          toast(t('내보냈어요'), { type: 'success' })
           void window.snaply.invoke('file:showInFolder', filePath)
         })
         .catch((err: unknown) => {
           const msg = err instanceof Error ? err.message : ''
-          if (!msg.includes('취소')) toast('내보내지 못했어요', { type: 'error' })
+          if (!msg.includes('취소')) toast(t('내보내지 못했어요'), { type: 'error' })
         })
     },
     [toast]
@@ -342,9 +346,9 @@ function LibraryScreen(): JSX.Element {
       void window.snaply
         .invoke('share:run', { targetId, itemId: item.id })
         .then(({ ok, message }) => {
-          if (message) toast(message, { type: ok ? 'success' : 'error' })
+          if (message) toast(t(message), { type: ok ? 'success' : 'error' })
         })
-        .catch(() => toast('공유하지 못했어요', { type: 'error' }))
+        .catch(() => toast(t('공유하지 못했어요'), { type: 'error' }))
     },
     [toast]
   )
@@ -385,7 +389,7 @@ function LibraryScreen(): JSX.Element {
           <div className={styles.searchWrap}>
             <Input
               type="search"
-              placeholder="파일명, 태그, 추출한 텍스트로 검색해요"
+              placeholder={t('파일명, 태그, 추출한 텍스트로 검색해요')}
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               aria-label="보관함 검색"
@@ -397,7 +401,7 @@ function LibraryScreen(): JSX.Element {
               size="md"
               onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
             >
-              {selectMode ? '선택 끝내기' : '선택'}
+              {selectMode ? t('선택 끝내기') : t('선택')}
             </Button>
             <Segmented<ViewMode>
               aria-label="보기 방식"
@@ -405,8 +409,8 @@ function LibraryScreen(): JSX.Element {
               value={view}
               onChange={setView}
               options={[
-                { value: 'grid', label: '그리드', icon: <GridIcon size={14} /> },
-                { value: 'timeline', label: '타임라인', icon: <TimelineIcon size={14} /> }
+                { value: 'grid', label: t('그리드'), icon: <GridIcon size={14} /> },
+                { value: 'timeline', label: t('타임라인'), icon: <TimelineIcon size={14} /> }
               ]}
             />
             <Button
@@ -416,7 +420,7 @@ function LibraryScreen(): JSX.Element {
             >
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                 <CameraIcon size={16} />
-                캡처하기
+                {t('캡처하기')}
               </span>
             </Button>
           </div>
@@ -429,7 +433,7 @@ function LibraryScreen(): JSX.Element {
             <EmptyState searching={searching} />
           ) : view === 'grid' ? (
             <>
-              {showStrip && <h2 className={styles.contentTitle}>모든 캡처</h2>}
+              {showStrip && <h2 className={styles.contentTitle}>{t('모든 캡처')}</h2>}
               <div className={styles.grid}>
                 {items.map((item) => (
                   <ItemCard key={item.id} item={item} selected={selectedIds.has(item.id)} {...cardProps} />
@@ -444,9 +448,9 @@ function LibraryScreen(): JSX.Element {
         {/* 다중 선택 하단 액션바 */}
         {selectMode && (
           <div className={styles.selectBar}>
-            <span className={styles.selectCount}>{selectedIds.size}개 선택됨</span>
+            <span className={styles.selectCount}>{t('{n}개 선택됨', { n: selectedIds.size })}</span>
             <Button variant="secondary" size="md" onClick={exitSelectMode}>
-              취소해요
+              {t('취소해요')}
             </Button>
             <Button
               variant="primary"
@@ -454,18 +458,18 @@ function LibraryScreen(): JSX.Element {
               disabled={selectedIds.size === 0}
               onClick={() => setBatchSheetOpen(true)}
             >
-              일괄 내보내기
+              {t('일괄 내보내기')}
             </Button>
           </div>
         )}
       </div>
 
       {/* 폴더 이동 시트 */}
-      <BottomSheet open={moveTarget !== null} onClose={() => setMoveTarget(null)} title="폴더로 이동해요">
+      <BottomSheet open={moveTarget !== null} onClose={() => setMoveTarget(null)} title={t('폴더로 이동해요')}>
         <SheetItem
           icon={<FolderIcon size={16} />}
-          title="폴더 없음"
-          description="폴더에서 꺼내요"
+          title={t('폴더 없음')}
+          description={t('폴더에서 꺼내요')}
           selected={moveTarget?.folderId === undefined}
           onClick={() => moveToFolder('')}
         />
@@ -480,22 +484,24 @@ function LibraryScreen(): JSX.Element {
         ))}
         {folders.length === 0 && (
           <div style={{ color: 'var(--text-sub)', padding: 'var(--space-3)' }}>
-            아직 폴더가 없어요. 사이드바에서 폴더를 먼저 만들어 주세요.
+            {t('아직 폴더가 없어요. 사이드바에서 폴더를 먼저 만들어 주세요.')}
           </div>
         )}
       </BottomSheet>
 
       {/* 항목 삭제 확인 시트 */}
-      <BottomSheet open={deleteTarget !== null} onClose={() => setDeleteTarget(null)} title="캡처를 삭제할까요?">
+      <BottomSheet open={deleteTarget !== null} onClose={() => setDeleteTarget(null)} title={t('캡처를 삭제할까요?')}>
         <p className={styles.deleteDesc}>
-          {deleteTarget ? `'${fileName(deleteTarget.filePath)}' 파일도 함께 삭제돼요. 되돌릴 수 없어요.` : ''}
+          {deleteTarget
+            ? t("'{name}' 파일도 함께 삭제돼요. 되돌릴 수 없어요.", { name: fileName(deleteTarget.filePath) })
+            : ''}
         </p>
         <div className={styles.sheetActions}>
           <Button variant="secondary" fullWidth onClick={() => setDeleteTarget(null)}>
-            취소해요
+            {t('취소해요')}
           </Button>
           <Button variant="danger" fullWidth onClick={confirmDelete}>
-            삭제해요
+            {t('삭제해요')}
           </Button>
         </div>
       </BottomSheet>
@@ -507,12 +513,12 @@ function LibraryScreen(): JSX.Element {
           setFolderSheetOpen(false)
           setNewFolderName('')
         }}
-        title="새 폴더를 만들어요"
+        title={t('새 폴더를 만들어요')}
       >
         <div className={styles.folderForm}>
           <Input
-            label="폴더 이름"
-            placeholder="예: 업무 스크린샷"
+            label={t('폴더 이름')}
+            placeholder={t('예: 업무 스크린샷')}
             value={newFolderName}
             onChange={(event) => setNewFolderName(event.target.value)}
             onKeyDown={(event) => {
@@ -521,7 +527,7 @@ function LibraryScreen(): JSX.Element {
             autoFocus
           />
           <Button variant="primary" fullWidth onClick={createFolder}>
-            만들어요
+            {t('만들어요')}
           </Button>
         </div>
       </BottomSheet>
@@ -530,32 +536,34 @@ function LibraryScreen(): JSX.Element {
       <BottomSheet
         open={folderDeleteTarget !== null}
         onClose={() => setFolderDeleteTarget(null)}
-        title="폴더를 삭제할까요?"
+        title={t('폴더를 삭제할까요?')}
       >
         <p className={styles.deleteDesc}>
-          {folderDeleteTarget ? `'${folderDeleteTarget.name}' 폴더만 삭제되고, 안의 캡처는 전체 목록에 남아요.` : ''}
+          {folderDeleteTarget
+            ? t("'{name}' 폴더만 삭제되고, 안의 캡처는 전체 목록에 남아요.", { name: folderDeleteTarget.name })
+            : ''}
         </p>
         <div className={styles.sheetActions}>
           <Button variant="secondary" fullWidth onClick={() => setFolderDeleteTarget(null)}>
-            취소해요
+            {t('취소해요')}
           </Button>
           <Button variant="danger" fullWidth onClick={confirmDeleteFolder}>
-            삭제해요
+            {t('삭제해요')}
           </Button>
         </div>
       </BottomSheet>
 
       {/* 텍스트 추출(Grab Text) 시트 */}
-      <BottomSheet open={ocrTarget !== null} onClose={() => setOcrTarget(null)} title="추출한 텍스트">
+      <BottomSheet open={ocrTarget !== null} onClose={() => setOcrTarget(null)} title={t('추출한 텍스트')}>
         {ocrLoading ? (
           <div className={styles.ocrLoading}>
             <span className={styles.spinner} aria-hidden="true" />
-            <span>텍스트를 인식하고 있어요…</span>
+            <span>{t('텍스트를 인식하고 있어요…')}</span>
           </div>
         ) : ocrError ? (
           <p className={styles.ocrErrorText}>{ocrError}</p>
         ) : ocrText !== null && ocrText.trim().length === 0 ? (
-          <p className={styles.ocrErrorText}>인식된 텍스트가 없어요.</p>
+          <p className={styles.ocrErrorText}>{t('인식된 텍스트가 없어요.')}</p>
         ) : (
           <pre className={styles.ocrBox}>{ocrText ?? ''}</pre>
         )}
@@ -566,27 +574,27 @@ function LibraryScreen(): JSX.Element {
             disabled={ocrLoading}
             onClick={() => ocrTarget && recognizeText(ocrTarget, true)}
           >
-            다시 인식해요
+            {t('다시 인식해요')}
           </Button>
           <Button variant="primary" fullWidth disabled={ocrLoading || !ocrText?.trim()} onClick={copyOcrText}>
-            전체 복사해요
+            {t('전체 복사해요')}
           </Button>
         </div>
       </BottomSheet>
 
       {/* 단건 내보내기 시트 */}
-      <BottomSheet open={exportTarget !== null} onClose={() => setExportTarget(null)} title="어떤 형식으로 내보낼까요?">
+      <BottomSheet open={exportTarget !== null} onClose={() => setExportTarget(null)} title={t('어떤 형식으로 내보낼까요?')}>
         {(['png', 'jpg', 'webp', 'pdf', 'tiff', 'pptx'] as ExportFormat[]).map((format) => (
           <SheetItem
             key={format}
             title={format.toUpperCase()}
             description={
               format === 'pdf'
-                ? '문서로 보관하기 좋아요'
+                ? t('문서로 보관하기 좋아요')
                 : format === 'pptx'
-                  ? '슬라이드로 바로 편집할 수 있어요'
+                  ? t('슬라이드로 바로 편집할 수 있어요')
                   : format === 'webp'
-                    ? '용량이 작아요'
+                    ? t('용량이 작아요')
                     : undefined
             }
             onClick={() => exportTarget && runExport(exportTarget, format)}
@@ -595,12 +603,12 @@ function LibraryScreen(): JSX.Element {
       </BottomSheet>
 
       {/* 공유 시트 */}
-      <BottomSheet open={shareTarget !== null} onClose={() => setShareTarget(null)} title="어디로 공유할까요?">
+      <BottomSheet open={shareTarget !== null} onClose={() => setShareTarget(null)} title={t('어디로 공유할까요?')}>
         {shareTargets.map((target) => (
           <SheetItem
             key={target.id}
-            title={target.label}
-            description={target.comingSoon ? '준비 중이에요' : undefined}
+            title={t(target.label)}
+            description={target.comingSoon ? t('준비 중이에요') : undefined}
             disabled={!target.available}
             onClick={() => {
               if (target.available && shareTarget) runShare(shareTarget, target.id)
@@ -608,7 +616,7 @@ function LibraryScreen(): JSX.Element {
           />
         ))}
         {shareTargets.length === 0 && (
-          <div style={{ color: 'var(--text-sub)', padding: 'var(--space-3)' }}>공유 대상을 불러오고 있어요...</div>
+          <div style={{ color: 'var(--text-sub)', padding: 'var(--space-3)' }}>{t('공유 대상을 불러오고 있어요...')}</div>
         )}
       </BottomSheet>
 
@@ -618,19 +626,19 @@ function LibraryScreen(): JSX.Element {
         onClose={() => {
           if (!batchRunning) setBatchSheetOpen(false)
         }}
-        title={`${selectedIds.size}개를 일괄 내보내요`}
+        title={t('{n}개를 일괄 내보내요', { n: selectedIds.size })}
       >
         <div className={styles.batchForm}>
           <Input
-            label="리사이즈 폭 (px)"
+            label={t('리사이즈 폭 (px)')}
             type="number"
-            placeholder="비워 두면 원본 크기 그대로예요"
+            placeholder={t('비워 두면 원본 크기 그대로예요')}
             value={batchWidth}
             onChange={(event) => setBatchWidth(event.target.value)}
             min={1}
           />
           <div>
-            <div className={styles.batchLabel}>포맷</div>
+            <div className={styles.batchLabel}>{t('포맷')}</div>
             <Segmented<BatchFormat>
               aria-label="내보내기 포맷"
               fullWidth
@@ -644,13 +652,13 @@ function LibraryScreen(): JSX.Element {
             />
           </div>
           <Input
-            label="워터마크 텍스트"
-            placeholder="비워 두면 워터마크 없이 내보내요"
+            label={t('워터마크 텍스트')}
+            placeholder={t('비워 두면 워터마크 없이 내보내요')}
             value={batchWatermark}
             onChange={(event) => setBatchWatermark(event.target.value)}
           />
           <Button variant="primary" fullWidth loading={batchRunning} onClick={runBatchExport}>
-            내보내요
+            {t('내보내요')}
           </Button>
         </div>
       </BottomSheet>

@@ -12,6 +12,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { Button, Card, ToastProvider, useToast } from '@ds/index'
 import { useTheme } from '../common/useTheme'
+import { useI18n } from '../common/i18n'
 import type { DisplayInfo, RecordOptions, RegionRect } from '@shared/ipc'
 import { RecordEngine, blobToDataUrl } from './engine'
 import { SettingsCard } from './SettingsCard'
@@ -45,6 +46,7 @@ interface DoneViewProps {
 }
 
 function DoneView({ path, onOpenFolder, onRetake }: DoneViewProps): JSX.Element {
+  const { t } = useI18n()
   return (
     <div className={styles.panelRoot}>
       <Card padding="lg" className={styles.card}>
@@ -52,13 +54,13 @@ function DoneView({ path, onOpenFolder, onRetake }: DoneViewProps): JSX.Element 
           <div className={styles.doneIcon}>
             <IconCheck />
           </div>
-          <h1 className={styles.doneTitle}>저장했어요</h1>
+          <h1 className={styles.doneTitle}>{t('저장했어요')}</h1>
           <div className={styles.donePath}>{path}</div>
           <Button variant="secondary" onClick={onOpenFolder}>
-            <IconFolder /> 파일 위치 열기
+            <IconFolder /> {t('파일 위치 열기')}
           </Button>
           <Button variant="ghost" onClick={onRetake}>
-            다시 찍기
+            {t('다시 찍기')}
           </Button>
         </div>
       </Card>
@@ -68,6 +70,7 @@ function DoneView({ path, onOpenFolder, onRetake }: DoneViewProps): JSX.Element 
 
 function RecorderApp(): JSX.Element {
   const { toast } = useToast()
+  const { t } = useI18n()
 
   const [displays, setDisplays] = useState<DisplayInfo[]>([])
   const [form, setForm] = useState<RecordForm>({
@@ -194,7 +197,7 @@ function RecorderApp(): JSX.Element {
         wantStartRef.current = false
         await window.snaply.invoke('record:stop', undefined)
         setPhase('card')
-        toast('화면 스트림을 가져오지 못했어요', { type: 'error' })
+        toast(t('화면 스트림을 가져오지 못했어요'), { type: 'error' })
       }
     },
     [resolveDisplay, toast]
@@ -285,10 +288,10 @@ function RecorderApp(): JSX.Element {
       })
       setSavedPath(result.filePath)
       setPhase('done')
-      toast('저장했어요')
+      toast(t('저장했어요'))
     } catch {
       setPhase('preview')
-      toast('저장에 실패했어요', { type: 'error' })
+      toast(t('저장에 실패했어요'), { type: 'error' })
     }
   }, [form.format, form.fps, trim, durationMs, toast])
 

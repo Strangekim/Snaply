@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { JSX } from 'react'
 import { Button, Card } from '@ds/index'
+import { useI18n } from '../common/i18n'
 import { formatElapsed } from './engine'
 import { IconPlay } from './icons'
 import styles from './recorder.module.css'
@@ -25,6 +26,7 @@ export function TrimPreview({
   onRetake,
   saving
 }: TrimPreviewProps): JSX.Element {
+  const { t } = useI18n()
   const videoRef = useRef<HTMLVideoElement>(null)
   const [playing, setPlaying] = useState(false)
   const [trimStart, trimEnd] = trim
@@ -111,7 +113,7 @@ export function TrimPreview({
     <div className={styles.panelRoot}>
       <Card padding="lg" className={styles.card}>
         <div className={styles.cardHeader}>
-          <h1 className={styles.cardTitle}>확인하고 저장해요</h1>
+          <h1 className={styles.cardTitle}>{t('확인하고 저장해요')}</h1>
         </div>
 
         <div
@@ -130,7 +132,7 @@ export function TrimPreview({
         </div>
 
         <div className={styles.trimArea}>
-          <div className={styles.fieldLabel}>트리밍</div>
+          <div className={styles.fieldLabel}>{t('트리밍')}</div>
           <div className={styles.trimTrack}>
             <div className={styles.trimRail} />
             <div
@@ -163,18 +165,18 @@ export function TrimPreview({
           </div>
           <div className={styles.trimLabels}>
             <span>{formatElapsed(trimStart)}</span>
-            <span>{formatElapsed(trimEnd - trimStart)} 저장돼요</span>
+            <span>{t('{d} 저장돼요', { d: formatElapsed(trimEnd - trimStart) })}</span>
             <span>{formatElapsed(trimEnd)}</span>
           </div>
         </div>
 
         <div className={styles.previewActions}>
           <Button variant="secondary" onClick={onRetake} disabled={saving}>
-            다시 찍기
-          </Button>
+            {t('다시 찍기')}
+</Button>
           <Button onClick={onSave} loading={saving}>
-            저장하기
-          </Button>
+            {t('저장하기')}
+</Button>
         </div>
       </Card>
     </div>

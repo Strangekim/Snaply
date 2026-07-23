@@ -4,6 +4,7 @@
  */
 import type { JSX } from 'react'
 import { Button, Segmented, Toggle } from '@ds/index'
+import { useI18n } from '../common/i18n'
 import styles from './editor.module.css'
 import { useEditorStore } from './store'
 import { COLOR_TOKEN, PALETTE_ORDER } from './palette'
@@ -39,17 +40,19 @@ const SIZE_OPTIONS: Array<{ value: SizeLevel; label: string }> = [
   { value: 'L', label: 'L' }
 ]
 
-const BLUR_MODE_OPTIONS: Array<{ value: BlurMode; label: string }> = [
-  { value: 'mosaic', label: '모자이크' },
-  { value: 'blur', label: '블러' }
+// 로케일 변경이 반영되도록 렌더 시점에 t()로 라벨을 만든다
+const blurModeOptions = (t: (ko: string) => string): Array<{ value: BlurMode; label: string }> => [
+  { value: 'mosaic', label: t('모자이크') },
+  { value: 'blur', label: t('블러') }
 ]
 
-const SPOTLIGHT_OPTIONS: Array<{ value: SpotlightShape; label: string }> = [
-  { value: 'rect', label: '사각형' },
-  { value: 'ellipse', label: '원형' }
+const spotlightOptions = (t: (ko: string) => string): Array<{ value: SpotlightShape; label: string }> => [
+  { value: 'rect', label: t('사각형') },
+  { value: 'ellipse', label: t('원형') }
 ]
 
 export function PropertyPanel(): JSX.Element {
+  const { t } = useI18n()
   const activeTool = useEditorStore((s) => s.activeTool)
   const selectedIds = useEditorStore((s) => s.selectedIds)
   const objects = useEditorStore((s) => s.history.present.objects)
@@ -87,7 +90,7 @@ export function PropertyPanel(): JSX.Element {
     <div className={styles.propertyPanel}>
       {showColor && (
         <div className={styles.panelGroup}>
-          <span className={styles.panelLabel}>색상</span>
+          <span className={styles.panelLabel}>{t('색상')}</span>
           <div className={styles.swatchRow} role="radiogroup" aria-label="색상">
             {PALETTE_ORDER.map((id) => (
               <button
@@ -107,7 +110,7 @@ export function PropertyPanel(): JSX.Element {
 
       {showStroke && (
         <div className={styles.panelGroup}>
-          <span className={styles.panelLabel}>굵기</span>
+          <span className={styles.panelLabel}>{t('굵기')}</span>
           <Segmented<SizeLevel>
             size="sm"
             aria-label="굵기"
@@ -120,7 +123,7 @@ export function PropertyPanel(): JSX.Element {
 
       {showFont && (
         <div className={styles.panelGroup}>
-          <span className={styles.panelLabel}>{sizeOnly ? '크기' : '글자'}</span>
+          <span className={styles.panelLabel}>{sizeOnly ? t('크기') : t('글자')}</span>
           <Segmented<SizeLevel>
             size="sm"
             aria-label="글자 크기"
@@ -133,7 +136,7 @@ export function PropertyPanel(): JSX.Element {
 
       {showHead && (
         <div className={styles.panelGroup}>
-          <span className={styles.panelLabel}>머리</span>
+          <span className={styles.panelLabel}>{t('머리')}</span>
           <Segmented<SizeLevel>
             size="sm"
             aria-label="화살표 머리 크기"
@@ -146,7 +149,7 @@ export function PropertyPanel(): JSX.Element {
 
       {showFill && (
         <div className={styles.panelGroup}>
-          <span className={styles.panelLabel}>채우기</span>
+          <span className={styles.panelLabel}>{t('채우기')}</span>
           <Toggle
             checked={style.fillEnabled}
             onChange={(v) => applyStyle({ fillEnabled: v })}
@@ -158,17 +161,17 @@ export function PropertyPanel(): JSX.Element {
       {showBlur && (
         <>
           <div className={styles.panelGroup}>
-            <span className={styles.panelLabel}>모드</span>
+            <span className={styles.panelLabel}>{t('모드')}</span>
             <Segmented<BlurMode>
               size="sm"
               aria-label="블러 모드"
-              options={BLUR_MODE_OPTIONS}
+              options={blurModeOptions(t)}
               value={style.blurMode ?? 'mosaic'}
               onChange={(v) => applyStyle({ blurMode: v })}
             />
           </div>
           <div className={styles.panelGroup}>
-            <span className={styles.panelLabel}>강도</span>
+            <span className={styles.panelLabel}>{t('강도')}</span>
             <Segmented<SizeLevel>
               size="sm"
               aria-label="블러 강도"
@@ -182,11 +185,11 @@ export function PropertyPanel(): JSX.Element {
 
       {showSpotlight && (
         <div className={styles.panelGroup}>
-          <span className={styles.panelLabel}>모양</span>
+          <span className={styles.panelLabel}>{t('모양')}</span>
           <Segmented<SpotlightShape>
             size="sm"
             aria-label="스포트라이트 모양"
-            options={SPOTLIGHT_OPTIONS}
+            options={spotlightOptions(t)}
             value={style.spotlightShape ?? 'rect'}
             onChange={(v) => applyStyle({ spotlightShape: v })}
           />
@@ -195,7 +198,7 @@ export function PropertyPanel(): JSX.Element {
 
       {showMagnify && (
         <div className={styles.panelGroup}>
-          <span className={styles.panelLabel}>배율</span>
+          <span className={styles.panelLabel}>{t('배율')}</span>
           <Segmented
             size="sm"
             aria-label="돋보기 배율"
@@ -208,7 +211,7 @@ export function PropertyPanel(): JSX.Element {
 
       {showStep && (
         <div className={styles.panelGroup}>
-          <span className={styles.panelLabel}>다음 번호 {stepCounter + 1}</span>
+          <span className={styles.panelLabel}>{t('다음 번호')} {stepCounter + 1}</span>
           <Button variant="ghost" size="sm" onClick={resetStepCounter} disabled={stepCounter === 0}>
             <IconReset size={16} />
             &nbsp;번호 초기화
@@ -222,21 +225,21 @@ export function PropertyPanel(): JSX.Element {
             variant="ghost"
             size="sm"
             onClick={applyStyleToSameType}
-            title="선택한 객체와 같은 종류 전체에 현재 스타일을 적용해요 (undo 한 번으로 되돌릴 수 있어요)"
+            title={t('선택한 객체와 같은 종류 전체에 현재 스타일을 적용해요 (undo 한 번으로 되돌릴 수 있어요)')}
           >
-            같은 종류 모두 바꾸기
+            {t('같은 종류 모두 바꾸기')}
           </Button>
         </div>
       )}
 
       {activeTool === 'crop' && (
-        <span className={styles.panelHint}>남길 영역을 드래그해서 지정해 주세요</span>
+        <span className={styles.panelHint}>{t('남길 영역을 드래그해서 지정해 주세요')}</span>
       )}
       {activeTool === 'magnify' && targetTypes.size > 0 && selectedIds.length === 0 && (
-        <span className={styles.panelHint}>캔버스를 클릭하면 돋보기가 놓여요</span>
+        <span className={styles.panelHint}>{t('캔버스를 클릭하면 돋보기가 놓여요')}</span>
       )}
       {!showColor && !showBlur && !showSpotlight && activeTool === 'select' && selectedIds.length === 0 && (
-        <span className={styles.panelHint}>객체를 선택하거나 드래그로 여러 개를 선택할 수 있어요</span>
+        <span className={styles.panelHint}>{t('객체를 선택하거나 드래그로 여러 개를 선택할 수 있어요')}</span>
       )}
     </div>
   )

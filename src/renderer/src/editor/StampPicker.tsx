@@ -4,6 +4,7 @@
  */
 import type { JSX } from 'react'
 import { BottomSheet } from '@ds/index'
+import { useI18n } from '../common/i18n'
 import styles from './editor.module.css'
 import { useEditorStore } from './store'
 import { STAMP_VIEWBOX, STAMPS, stampSvgColor, type StampElement } from './stamps'
@@ -53,13 +54,14 @@ function renderSvgElement(el: StampElement, i: number): JSX.Element {
 }
 
 export function StampPicker(): JSX.Element {
+  const { t } = useI18n()
   const open = useEditorStore((s) => s.sheet === 'stamps')
   const setSheet = useEditorStore((s) => s.setSheet)
   const stampKind = useEditorStore((s) => s.stampKind)
   const setStampKind = useEditorStore((s) => s.setStampKind)
 
   return (
-    <BottomSheet open={open} onClose={() => setSheet(null)} title="스탬프">
+    <BottomSheet open={open} onClose={() => setSheet(null)} title={t('스탬프')}>
       <div className={styles.stampGrid}>
         {STAMPS.map((s) => (
           <button
@@ -80,7 +82,7 @@ export function StampPicker(): JSX.Element {
           </button>
         ))}
       </div>
-      <p className={styles.sheetHint}>스탬프를 고른 뒤 캔버스를 클릭하면 배치돼요</p>
+      <p className={styles.sheetHint}>{t('스탬프를 고른 뒤 캔버스를 클릭하면 배치돼요')}</p>
     </BottomSheet>
   )
 }

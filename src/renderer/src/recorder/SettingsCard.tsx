@@ -1,6 +1,7 @@
 /** 녹화 설정 카드 (시작 전 상태). 소유자: Recorder */
 import type { JSX } from 'react'
 import { Button, Card, Segmented, Toggle } from '@ds/index'
+import { useI18n } from '../common/i18n'
 import type { DisplayInfo } from '@shared/ipc'
 import type { GifFps, RecordForm } from './types'
 import { IconCamera, IconClose, IconMic, IconSpeaker } from './icons'
@@ -21,13 +22,14 @@ export function SettingsCard({
   onStart,
   starting
 }: SettingsCardProps): JSX.Element {
+  const { t } = useI18n()
   const displayValue = String(form.displayId ?? displays.find((d) => d.isPrimary)?.id ?? '')
 
   return (
     <div className={styles.panelRoot}>
       <Card padding="lg" className={styles.card}>
         <div className={styles.cardHeader}>
-          <h1 className={styles.cardTitle}>화면 녹화</h1>
+          <h1 className={styles.cardTitle}>{t('화면 녹화')}</h1>
           <button
             type="button"
             className={styles.iconButton}
@@ -39,22 +41,22 @@ export function SettingsCard({
         </div>
 
         <div className={styles.field}>
-          <div className={styles.fieldLabel}>녹화 대상</div>
+          <div className={styles.fieldLabel}>{t('녹화 대상')}</div>
           <Segmented<RecordForm['target']>
             aria-label="녹화 대상"
             fullWidth
             value={form.target}
             onChange={(target) => onChange({ target })}
             options={[
-              { value: 'fullscreen', label: '전체 화면' },
-              { value: 'region', label: '영역' }
+              { value: 'fullscreen', label: t('전체 화면') },
+              { value: 'region', label: t('영역') }
             ]}
           />
         </div>
 
         {displays.length > 1 && (
           <div className={styles.field}>
-            <div className={styles.fieldLabel}>디스플레이</div>
+            <div className={styles.fieldLabel}>{t('디스플레이')}</div>
             <Segmented
               aria-label="디스플레이 선택"
               fullWidth
@@ -73,15 +75,15 @@ export function SettingsCard({
           <div className={styles.toggleRow}>
             <span className={styles.toggleLabel}>
               <IconMic />
-              마이크
-            </span>
+              {t('마이크')}
+</span>
             <Toggle aria-label="마이크" checked={form.mic} onChange={(mic) => onChange({ mic })} />
           </div>
           <div className={styles.toggleRow}>
             <span className={styles.toggleLabel}>
               <IconSpeaker />
-              시스템 오디오
-            </span>
+              {t('시스템 오디오')}
+</span>
             <Toggle
               aria-label="시스템 오디오"
               checked={form.systemAudio}
@@ -91,8 +93,8 @@ export function SettingsCard({
           <div className={styles.toggleRow}>
             <span className={styles.toggleLabel}>
               <IconCamera />
-              웹캠
-            </span>
+              {t('웹캠')}
+</span>
             <Toggle
               aria-label="웹캠"
               checked={form.webcam}
@@ -102,7 +104,7 @@ export function SettingsCard({
         </div>
 
         <div className={styles.field}>
-          <div className={styles.fieldLabel}>포맷</div>
+          <div className={styles.fieldLabel}>{t('포맷')}</div>
           <Segmented<RecordForm['format']>
             aria-label="저장 포맷"
             fullWidth
@@ -117,7 +119,7 @@ export function SettingsCard({
 
         {form.format === 'gif' && (
           <div className={styles.field}>
-            <div className={styles.fieldLabel}>GIF 프레임레이트</div>
+            <div className={styles.fieldLabel}>{t('GIF 프레임레이트')}</div>
             <Segmented<GifFps>
               aria-label="GIF 프레임레이트"
               fullWidth
@@ -135,7 +137,7 @@ export function SettingsCard({
 
         <div className={styles.startArea}>
           <Button size="lg" fullWidth loading={starting} onClick={onStart}>
-            {form.target === 'region' ? '영역 선택하고 시작' : '녹화 시작'}
+            {form.target === 'region' ? t('영역 선택하고 시작') : t('녹화 시작')}
           </Button>
         </div>
       </Card>

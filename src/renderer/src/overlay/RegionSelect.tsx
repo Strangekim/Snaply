@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useI18n } from '../common/i18n'
 import { glassCapsule } from './glass'
 import { Magnifier } from './Magnifier'
 import type { Rect, Session } from './types'
@@ -86,6 +87,7 @@ export function RegionSelect({
   commitLabel,
   idleHint
 }: RegionSelectProps): React.JSX.Element {
+  const { t } = useI18n()
   const [phase, setPhase] = useState<Phase>('idle')
   const [mouse, setMouse] = useState<{ x: number; y: number } | null>(null)
   const [sel, setSel] = useState<Rect | null>(null)
@@ -313,7 +315,7 @@ export function RegionSelect({
             }}
             onClick={() => onCommit(sel, false)}
           >
-            {commitLabel ?? '✓ 캡처'}
+            {commitLabel ?? t('✓ 캡처')}
           </button>
           <button
             type="button"
@@ -331,7 +333,7 @@ export function RegionSelect({
             }}
             onClick={() => onCommit(sel, true)}
           >
-            📋 클립보드
+            {t('📋 클립보드')}
           </button>
           <button
             type="button"
@@ -349,7 +351,7 @@ export function RegionSelect({
             }}
             onClick={onCancel}
           >
-            ✕ 취소
+            {t('✕ 취소')}
           </button>
         </div>
       )}
@@ -371,7 +373,7 @@ export function RegionSelect({
             pointerEvents: 'none'
           }}
         >
-          {idleHint ?? '드래그해서 캡처할 영역을 선택해 주세요 · ESC 취소'}
+          {idleHint ?? t('드래그해서 캡처할 영역을 선택해 주세요 · ESC 취소')}
         </div>
       )}
       {phase === 'adjust' && (
@@ -388,7 +390,7 @@ export function RegionSelect({
             pointerEvents: 'none'
           }}
         >
-          핸들을 끌어 크기를 조정하거나 영역을 이동할 수 있어요 · Enter 캡처 · ESC 취소
+          {t('핸들을 끌어 크기를 조정하거나 영역을 이동할 수 있어요 · Enter 캡처 · ESC 취소')}
         </div>
       )}
     </div>

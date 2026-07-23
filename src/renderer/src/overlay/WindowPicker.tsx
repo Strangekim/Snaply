@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useI18n } from '../common/i18n'
 import { glassCard } from './glass'
 import type { WindowSource } from './types'
 
@@ -12,6 +13,7 @@ interface WindowPickerProps {
 
 /** 창 캡처: 열려 있는 창 목록을 다크 글래스 그리드 카드로 표시 */
 export function WindowPicker({ onPick }: WindowPickerProps): React.JSX.Element {
+  const { t } = useI18n()
   const [windows, setWindows] = useState<WindowSource[] | null>(null)
 
   useEffect(() => {
@@ -48,15 +50,15 @@ export function WindowPicker({ onPick }: WindowPickerProps): React.JSX.Element {
           maxHeight: '74vh'
         }}
       >
-        <div style={{ fontSize: 'var(--text-section)', fontWeight: 600 }}>캡처할 창을 선택해 주세요</div>
+        <div style={{ fontSize: 'var(--text-section)', fontWeight: 600 }}>{t('캡처할 창을 선택해 주세요')}</div>
         {windows === null && (
           <div style={{ color: 'var(--overlay-text-sub)', padding: 'var(--space-8)', textAlign: 'center' }}>
-            창 목록을 불러오고 있어요…
+            {t('창 목록을 불러오고 있어요…')}
           </div>
         )}
         {windows !== null && windows.length === 0 && (
           <div style={{ color: 'var(--overlay-text-sub)', padding: 'var(--space-8)', textAlign: 'center' }}>
-            캡처할 수 있는 창이 없어요
+            {t('캡처할 수 있는 창이 없어요')}
           </div>
         )}
         {windows !== null && windows.length > 0 && (

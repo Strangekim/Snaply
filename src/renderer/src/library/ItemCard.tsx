@@ -2,6 +2,7 @@
 import type { JSX, MouseEvent } from 'react'
 import type { LibraryItem } from '@shared/ipc'
 import styles from './library.module.css'
+import { useI18n } from '../common/i18n'
 import { fileName, relativeTime, toSnaplyFileUrl } from './format'
 import {
   CheckIcon,
@@ -75,6 +76,7 @@ export function ItemCard({
   selected = false,
   onSelectToggle
 }: ItemCardProps): JSX.Element {
+  const { t } = useI18n()
   const isImage = item.kind === 'image'
   // video는 썸네일이 없으면 파일 자체를 <img>로 못 그리므로 플레이스홀더로 대체
   const thumbSrc = item.thumbPath ?? (isImage || item.kind === 'gif' ? item.filePath : undefined)
@@ -106,8 +108,8 @@ export function ItemCard({
           <button
             type="button"
             className={styles.playOverlay}
-            title="파일 위치를 열어요"
-            aria-label="파일 위치 열기"
+            title={t('파일 위치를 열어요')}
+            aria-label={t('파일 위치 열기')}
             onClick={() => onShowInFolder(item)}
           >
             <span className={styles.playBadge}>
@@ -131,8 +133,8 @@ export function ItemCard({
                 className={[styles.toggleBtn, item.pinned ? `${styles.toggleOn} ${styles.togglePinOn}` : '']
                   .filter(Boolean)
                   .join(' ')}
-                title={item.pinned ? '핀 해제해요' : '핀 고정해요'}
-                aria-label={item.pinned ? '핀 해제' : '핀 고정'}
+                title={item.pinned ? t('핀 해제해요') : t('핀 고정해요')}
+                aria-label={item.pinned ? t('핀 해제') : t('핀 고정')}
                 onClick={() => onTogglePin(item)}
               >
                 <PinIcon size={15} filled={item.pinned} />
@@ -142,8 +144,8 @@ export function ItemCard({
                 className={[styles.toggleBtn, item.favorite ? `${styles.toggleOn} ${styles.toggleFavOn}` : '']
                   .filter(Boolean)
                   .join(' ')}
-                title={item.favorite ? '즐겨찾기 해제해요' : '즐겨찾기에 추가해요'}
-                aria-label={item.favorite ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+                title={item.favorite ? t('즐겨찾기 해제해요') : t('즐겨찾기에 추가해요')}
+                aria-label={item.favorite ? t('즐겨찾기 해제') : t('즐겨찾기 추가')}
                 onClick={() => onToggleFavorite(item)}
               >
                 <StarIcon size={15} filled={item.favorite} />
@@ -153,13 +155,13 @@ export function ItemCard({
             <div className={styles.actions}>
               {isImage && (
                 <>
-                  <button type="button" className={styles.actionBtn} title="편집해요" onClick={() => onEdit(item)}>
+                  <button type="button" className={styles.actionBtn} title={t('편집해요')} onClick={() => onEdit(item)}>
                     <EditIcon size={15} />
                   </button>
                   <button
                     type="button"
                     className={styles.actionBtn}
-                    title="텍스트를 추출해요"
+                    title={t('텍스트를 추출해요')}
                     onClick={() => onGrabText(item)}
                   >
                     <TextScanIcon size={15} />
@@ -167,7 +169,7 @@ export function ItemCard({
                   <button
                     type="button"
                     className={styles.actionBtn}
-                    title="클립보드에 복사해요"
+                    title={t('클립보드에 복사해요')}
                     onClick={() => onCopy(item)}
                   >
                     <CopyIcon size={15} />
@@ -175,20 +177,20 @@ export function ItemCard({
                 </>
               )}
               {isImage && (
-                <button type="button" className={styles.actionBtn} title="내보내요" onClick={() => onExport(item)}>
+                <button type="button" className={styles.actionBtn} title={t('내보내요')} onClick={() => onExport(item)}>
                   <ExportIcon size={15} />
                 </button>
               )}
-              <button type="button" className={styles.actionBtn} title="공유해요" onClick={() => onShare(item)}>
+              <button type="button" className={styles.actionBtn} title={t('공유해요')} onClick={() => onShare(item)}>
                 <ShareIcon size={15} />
               </button>
-              <button type="button" className={styles.actionBtn} title="폴더로 이동해요" onClick={() => onMove(item)}>
+              <button type="button" className={styles.actionBtn} title={t('폴더로 이동해요')} onClick={() => onMove(item)}>
                 <FolderIcon size={15} />
               </button>
               <button
                 type="button"
                 className={styles.actionBtn}
-                title="파일 위치를 열어요"
+                title={t('파일 위치를 열어요')}
                 onClick={() => onShowInFolder(item)}
               >
                 <OpenFolderIcon size={15} />
@@ -196,7 +198,7 @@ export function ItemCard({
               <button
                 type="button"
                 className={`${styles.actionBtn} ${styles.actionBtnDanger}`}
-                title="삭제해요"
+                title={t('삭제해요')}
                 onClick={() => onDelete(item)}
               >
                 <TrashIcon size={15} />

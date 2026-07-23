@@ -3,8 +3,9 @@
  */
 import type { Point, RectArea } from './types'
 
-export const MIN_ZOOM = 0.5
-export const MAX_ZOOM = 4
+// 거의 무한에 가까운 확대/축소 범위 (2% ~ 6400%)
+export const MIN_ZOOM = 0.02
+export const MAX_ZOOM = 64
 
 export function clampZoom(zoom: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom))

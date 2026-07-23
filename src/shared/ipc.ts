@@ -173,6 +173,8 @@ export interface InvokeChannels {
     res: Array<{ sourceId: string; title: string; appName?: string; thumbnailDataUrl: string }>
   }
   'capture:scrolling:start': { req: RegionRect; res: CaptureResult }
+  /** 오버레이 캡슐에서 모드 변경 → 메인이 모든 오버레이 창에 event:overlayMode 브로드캐스트 */
+  'overlay:setMode': { req: CaptureMode; res: void }
 
   'clipboard:writeImage': { req: { dataUrl?: string; filePath?: string }; res: void }
   'clipboard:writeText': { req: string; res: void }
@@ -237,9 +239,19 @@ export interface EventChannels {
   'event:captureCompleted': CaptureResult
   /** 에디터 창에 열 항목 전달 */
   'event:openInEditor': { itemId: string; filePath: string }
-  /** 오버레이 창에 캡처 세션 시작 알림 */
-  'event:overlayStart': { mode: CaptureMode; frozenFrames: Array<{ displayId: number; dataUrl: string }> }
+  /** 오버레이 창에 캡처 세션 시작 알림.
+   * 듀얼 모니터: 디스플레이당 오버레이 창 1개 — 각 창은 자기 디스플레이 프레임만 받는다 */
+  'event:overlayStart': {
+    mode: CaptureMode
+    frozenFrames: Array<{ displayId: number; dataUrl: string }>
+    /** 이 오버레이 창이 담당하는 디스플레이 */
+    display?: DisplayInfo
+    /** 모드 캡슐/창 목록을 이 창에 표시할지 (커서가 있는 디스플레이만 true) */
+    showCapsule?: boolean
+  }
   'event:overlayCancel': void
+  /** 캡슐에서 모드 변경 시 모든 오버레이 창 동기화 */
+  'event:overlayMode': CaptureMode
   /** 녹화 상태 변경 */
   'event:recordState': { state: 'idle' | 'countdown' | 'recording' | 'paused' | 'processing'; elapsedMs?: number }
   /** 라이브러리 변경 브로드캐스트 */

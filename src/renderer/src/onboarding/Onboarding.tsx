@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react'
 import type { JSX } from 'react'
 import { Button } from '@ds/index'
+import { translate } from '../common/i18n'
+import { useI18n } from '../common/i18n'
 
 interface StepDef {
   title: string
@@ -53,35 +55,38 @@ function ReadyArt(): JSX.Element {
 
 function buildSteps(): StepDef[] {
   const isMac = window.snaply.platform === 'darwin'
+  const t = translate
   return [
     {
-      title: '만나서 반가워요',
-      desc: 'Snaply는 캡처, 편집, 녹화, 텍스트 추출까지\n한 번에 되는 화면 캡처 앱이에요.',
+      title: t('만나서 반가워요'),
+      desc: t('Snaply는 캡처, 편집, 녹화, 텍스트 추출까지\n한 번에 되는 화면 캡처 앱이에요.'),
       art: <CaptureArt />
     },
     {
-      title: '단축키 하나면 돼요',
+      title: t('단축키 하나면 돼요'),
       desc: isMac
-        ? 'Cmd+Shift+9를 누르면 어디서든 캡처가 시작돼요.\n설정에서 언제든 바꿀 수 있어요.'
-        : 'PrintScreen 키를 누르면 어디서든 캡처가 시작돼요.\n설정에서 언제든 바꿀 수 있어요.',
+        ? t('Cmd+Shift+9를 누르면 어디서든 캡처가 시작돼요.\n설정에서 언제든 바꿀 수 있어요.')
+        : t('PrintScreen 키를 누르면 어디서든 캡처가 시작돼요.\n설정에서 언제든 바꿀 수 있어요.'),
       art: <HotkeyArt />
     },
     isMac
       ? {
-          title: '권한만 허용하면 끝나요',
-          desc: '시스템 설정 > 개인정보 보호 및 보안 > 화면 기록에서\nSnaply를 허용해 주세요. 허용해야 화면이 캡처돼요.',
+          title: t('권한만 허용하면 끝나요'),
+          desc: t('시스템 설정 > 개인정보 보호 및 보안 > 화면 기록에서\nSnaply를 허용해 주세요. 허용해야 화면이 캡처돼요.'),
           art: <ReadyArt />
         }
       : {
-          title: '준비 끝!',
-          desc: '캡처한 이미지는 보관함에 자동으로 쌓이고,\n검색으로 언제든 다시 찾을 수 있어요.',
+          title: t('준비 끝!'),
+          desc: t('캡처한 이미지는 보관함에 자동으로 쌓이고,\n검색으로 언제든 다시 찾을 수 있어요.'),
           art: <ReadyArt />
         }
   ]
 }
 
 export function Onboarding({ onDone }: { onDone: () => void }): JSX.Element {
-  const [steps] = useState(buildSteps)
+  const { t } = useI18n()
+  // locale이 바뀌면 다시 계산되도록 렌더마다 생성 (스텝 3개 — 비용 미미)
+  const steps = buildSteps()
   const [step, setStep] = useState(0)
   const [entered, setEntered] = useState(false)
 
@@ -170,7 +175,7 @@ export function Onboarding({ onDone }: { onDone: () => void }): JSX.Element {
             else setStep((s) => s + 1)
           }}
         >
-          {last ? '시작하기' : '다음'}
+          {last ? t('시작하기') : t('다음')}
         </Button>
       </div>
     </div>

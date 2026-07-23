@@ -10,6 +10,7 @@ import { registerRecorderIpc } from './recorder'
 import { registerExportIpc } from './export'
 import { registerShareIpc } from './share'
 import { applyAutoStart } from './autostart'
+import { refreshTrayMenu } from './tray'
 import { registerShortcuts } from './shortcuts'
 
 const MIME_BY_EXT: Record<string, string> = {
@@ -32,6 +33,7 @@ export function registerCoreIpc(): void {
     const next = setSettings(patch)
     if (JSON.stringify(next.hotkeys) !== prevHotkeys) registerShortcuts()
     if (next.autoStart !== prev.autoStart) applyAutoStart(next.autoStart)
+    if (next.language !== prev.language) refreshTrayMenu()
     broadcast('event:settingsChanged', next)
     return next
   })

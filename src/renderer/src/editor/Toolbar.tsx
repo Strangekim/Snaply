@@ -2,6 +2,7 @@
  * 좌측 세로 툴바. 소유자: Editor.
  */
 import type { JSX, ReactNode } from 'react'
+import { useI18n } from '../common/i18n'
 import styles from './editor.module.css'
 import { useEditorStore } from './store'
 import type { ToolId } from './types'
@@ -49,6 +50,7 @@ export const TOOLS: ToolDef[] = [
 ]
 
 export function Toolbar(): JSX.Element {
+  const { t } = useI18n()
   const activeTool = useEditorStore((s) => s.activeTool)
   const setTool = useEditorStore((s) => s.setTool)
   const setSheet = useEditorStore((s) => s.setSheet)
@@ -67,8 +69,8 @@ export function Toolbar(): JSX.Element {
           <button
             type="button"
             className={`${styles.toolButton} ${activeTool === tool.id ? styles.toolButtonActive : ''}`}
-            title={tool.shortcut ? `${tool.label} (${tool.shortcut})` : tool.label}
-            aria-label={tool.label}
+            title={tool.shortcut ? `${t(tool.label)} (${tool.shortcut})` : t(tool.label)}
+            aria-label={t(tool.label)}
             aria-pressed={activeTool === tool.id}
             onClick={() => handleClick(tool.id)}
           >

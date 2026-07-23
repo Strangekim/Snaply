@@ -5,13 +5,36 @@ import type { EventChannel, EventChannels } from '@shared/ipc'
 
 export type WindowName = 'library' | 'editor' | 'overlay' | 'recorder' | 'settings'
 
-const windows = new Map<WindowName, BrowserWindow>()
+/** 오버레이는 디스플레이당 1개('overlay:<displayId>') — 혼합 DPI에서 스팬 창이 잘리는 문제 회피 */
+const windows = new Map<string, BrowserWindow>()
 
 function pageUrl(name: WindowName): { url?: string; file?: string } {
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     return { url: `${process.env['ELECTRON_RENDERER_URL']}/${name}.html` }
   }
   return { file: join(__dirname, `../renderer/${name}.html`) }
+}
+
+/** 특정 디스플레이 하나를 정확히 덮는 오버레이 창 옵션 */
+function overlayOptions(display: Electron.Display): Electron.BrowserWindowConstructorOptions {
+  return {
+    ...baseOptions(),
+    x: display.bounds.x,
+    y: display.bounds.y,
+    width: display.bounds.width,
+    height: display.bounds.height,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    fullscreenable: false,
+    hasShadow: false,
+    enableLargerThanScreen: true
+  }
 }
 
 function baseOptions(): Electron.BrowserWindowConstructorOptions {
@@ -47,32 +70,7 @@ const configs: Record<WindowName, () => Electron.BrowserWindowConstructorOptions
     title: 'Snaply 에디터',
     backgroundColor: '#F9FAFB'
   }),
-  overlay: () => {
-    // 모든 디스플레이를 덮는 가상 영역
-    const displays = screen.getAllDisplays()
-    const minX = Math.min(...displays.map((d) => d.bounds.x))
-    const minY = Math.min(...displays.map((d) => d.bounds.y))
-    const maxX = Math.max(...displays.map((d) => d.bounds.x + d.bounds.width))
-    const maxY = Math.max(...displays.map((d) => d.bounds.y + d.bounds.height))
-    return {
-      ...baseOptions(),
-      x: minX,
-      y: minY,
-      width: maxX - minX,
-      height: maxY - minY,
-      frame: false,
-      transparent: true,
-      resizable: false,
-      movable: false,
-      minimizable: false,
-      maximizable: false,
-      skipTaskbar: true,
-      alwaysOnTop: true,
-      fullscreenable: false,
-      hasShadow: false,
-      enableLargerThanScreen: true
-    }
-  },
+  overlay: () => overlayOptions(screen.getPrimaryDisplay()),
   recorder: () => ({
     ...baseOptions(),
     width: 420,
@@ -98,6 +96,54 @@ const configs: Record<WindowName, () => Electron.BrowserWindowConstructorOptions
 export function getWindow(name: WindowName): BrowserWindow | undefined {
   const win = windows.get(name)
   return win && !win.isDestroyed() ? win : undefined
+}
+
+// ───────────── 디스플레이별 오버레이 창 ─────────────
+
+export function ensureOverlayForDisplay(display: Electron.Display): BrowserWindow {
+  const key = `overlay:${display.id}`
+  const existing = windows.get(key)
+  if (existing && !existing.isDestroyed()) {
+    existing.setBounds(display.bounds)
+    return existing
+  }
+  const win = new BrowserWindow(overlayOptions(display))
+  // 생성 시점에는 OS가 workArea/DPI에 맞춰 크기를 잘라버린다 (예: 960→912, 혼합 DPI 모니터는 완전히 어긋남).
+  // 생성 후 setBounds를 다시 호출하면 정확한 전체 화면 크기가 적용된다.
+  win.setBounds(display.bounds)
+  windows.set(key, win)
+  win.on('closed', () => windows.delete(key))
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url)
+    return { action: 'deny' }
+  })
+  const target = pageUrl('overlay')
+  if (target.url) void win.loadURL(target.url)
+  else if (target.file) void win.loadFile(target.file)
+  return win
+}
+
+export function getOverlayWindows(): BrowserWindow[] {
+  const result: BrowserWindow[] = []
+  for (const [key, win] of windows) {
+    if (key.startsWith('overlay') && !win.isDestroyed()) result.push(win)
+  }
+  return result
+}
+
+/** 현재 디스플레이 구성에 없는 오버레이 창 정리 (모니터 연결 해제 대응) */
+export function pruneStaleOverlays(validDisplayIds: number[]): void {
+  const valid = new Set(validDisplayIds.map((id) => `overlay:${id}`))
+  for (const [key, win] of windows) {
+    if (key.startsWith('overlay:') && !valid.has(key) && !win.isDestroyed()) {
+      win.destroy()
+      windows.delete(key)
+    }
+  }
+}
+
+export function sendToOverlays<C extends EventChannel>(channel: C, payload: EventChannels[C]): void {
+  for (const win of getOverlayWindows()) win.webContents.send(channel, payload)
 }
 
 export function ensureWindow(name: WindowName): BrowserWindow {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useI18n } from '../common/i18n'
 import type { CaptureMode, RegionRect } from '@shared/ipc'
 import { overlayCss } from './glass'
 import { DisplayPicker } from './DisplayPicker'
@@ -15,9 +16,15 @@ function toOverlayMode(mode: CaptureMode): OverlayMode {
   return 'region'
 }
 
-/** 오버레이 루트: 프리즈 프레임 + 모드 캡슐 + 모드별 캡처 UI */
+/**
+ * 오버레이 루트 — 디스플레이당 오버레이 창 1개 구조.
+ * 이 창은 event:overlayStart로 받은 자기 디스플레이의 프레임만 렌더링한다.
+ * (혼합 DPI 멀티 모니터에서 하나의 스팬 창은 OS가 잘라버리는 문제가 있어 창을 분리했다)
+ */
 export function App(): React.JSX.Element {
+  const { t } = useI18n()
   const [session, setSession] = useState<Session | null>(null)
+  const [showCapsule, setShowCapsule] = useState(false)
   const [mode, setMode] = useState<OverlayMode>('region')
   const [interacting, setInteracting] = useState(false)
   const committing = useRef(false)
@@ -31,21 +38,33 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     const offStart = window.snaply.on('event:overlayStart', (payload) => {
       committing.current = false
-      void window.snaply.invoke('capture:listDisplays', undefined).then((displays) => {
-        const originX = Math.min(...displays.map((d) => d.bounds.x))
-        const originY = Math.min(...displays.map((d) => d.bounds.y))
-        setSession({ mode: payload.mode, frames: payload.frozenFrames, displays, originX, originY })
-        setMode(toOverlayMode(payload.mode))
-        setInteracting(false)
+      const display = payload.display
+      if (!display) return
+      setSession({
+        mode: payload.mode,
+        frames: payload.frozenFrames,
+        displays: [display],
+        originX: display.bounds.x,
+        originY: display.bounds.y
       })
+      setShowCapsule(payload.showCapsule ?? true)
+      setMode(toOverlayMode(payload.mode))
+      setInteracting(false)
     })
     const offCancel = window.snaply.on('event:overlayCancel', () => {
       setSession(null)
       setInteracting(false)
     })
+    // 다른 창의 캡슐에서 모드가 바뀌면 이 창도 동기화
+    const offMode = window.snaply.on('event:overlayMode', (m) => {
+      committing.current = false
+      setMode(toOverlayMode(m))
+      setInteracting(false)
+    })
     return () => {
       offStart()
       offCancel()
+      offMode()
     }
   }, [])
 
@@ -57,30 +76,17 @@ export function App(): React.JSX.Element {
     return () => window.removeEventListener('keydown', onKey)
   }, [cancel])
 
-  // 오버레이 로컬 Rect → 디스플레이 로컬 좌표(DIP)의 RegionRect 변환
+  // 창 로컬 Rect → 디스플레이 로컬 좌표(DIP)의 RegionRect 변환 (이 창 = 디스플레이 1개)
   const toRegionRect = useCallback(
     (rect: Rect): RegionRect | null => {
       if (!session) return null
-      // 선택 중심이 속한 디스플레이 기준으로 좌표 변환
-      const cx = rect.x + rect.w / 2 + session.originX
-      const cy = rect.y + rect.h / 2 + session.originY
-      const display =
-        session.displays.find(
-          (d) => cx >= d.bounds.x && cx < d.bounds.x + d.bounds.width && cy >= d.bounds.y && cy < d.bounds.y + d.bounds.height
-        ) ?? session.displays[0]
-      // 해당 디스플레이 경계로 클램프 (디스플레이를 벗어난 부분은 잘라냄)
-      const gx1 = Math.max(rect.x + session.originX, display.bounds.x)
-      const gy1 = Math.max(rect.y + session.originY, display.bounds.y)
-      const gx2 = Math.min(rect.x + rect.w + session.originX, display.bounds.x + display.bounds.width)
-      const gy2 = Math.min(rect.y + rect.h + session.originY, display.bounds.y + display.bounds.height)
-      if (gx2 - gx1 < 1 || gy2 - gy1 < 1) return null
-      return {
-        x: gx1 - display.bounds.x,
-        y: gy1 - display.bounds.y,
-        width: gx2 - gx1,
-        height: gy2 - gy1,
-        displayId: display.id
-      }
+      const display = session.displays[0]
+      const x1 = Math.max(rect.x, 0)
+      const y1 = Math.max(rect.y, 0)
+      const x2 = Math.min(rect.x + rect.w, display.bounds.width)
+      const y2 = Math.min(rect.y + rect.h, display.bounds.height)
+      if (x2 - x1 < 1 || y2 - y1 < 1) return null
+      return { x: x1, y: y1, width: x2 - x1, height: y2 - y1, displayId: display.id }
     },
     [session]
   )
@@ -138,6 +144,12 @@ export function App(): React.JSX.Element {
     [session, mode]
   )
 
+  const changeMode = useCallback((m: OverlayMode) => {
+    setMode(m)
+    // 다른 디스플레이의 오버레이 창들도 같은 모드로 전환
+    void window.snaply.invoke('overlay:setMode', m)
+  }, [])
+
   const commitWindow = useCallback((win: WindowSource) => {
     if (committing.current) return
     committing.current = true
@@ -158,39 +170,30 @@ export function App(): React.JSX.Element {
     })
   }, [])
 
-  // 전체 화면 모드 + 모니터 1대 → 선택할 것이 없으므로 즉시 캡처
-  useEffect(() => {
-    if (session && mode === 'fullscreen' && session.displays.length === 1) {
-      commitFullscreen(session.displays[0].id)
-    }
-  }, [session, mode, commitFullscreen])
-
   if (!session) return <></>
+
+  const display = session.displays[0]
+  const frame = session.frames[0]
 
   return (
     <div style={{ position: 'fixed', inset: 0 }}>
       <style>{overlayCss}</style>
 
-      {/* 프리즈 프레임 (디스플레이별) */}
-      {session.frames.map((f) => {
-        const d = session.displays.find((dd) => dd.id === f.displayId)
-        if (!d) return null
-        return (
-          <img
-            key={f.displayId}
-            src={f.dataUrl}
-            draggable={false}
-            style={{
-              position: 'absolute',
-              left: d.bounds.x - session.originX,
-              top: d.bounds.y - session.originY,
-              width: d.bounds.width,
-              height: d.bounds.height,
-              pointerEvents: 'none'
-            }}
-          />
-        )
-      })}
+      {/* 프리즈 프레임 (이 창의 디스플레이) */}
+      {frame && (
+        <img
+          src={frame.dataUrl}
+          draggable={false}
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            width: display.bounds.width,
+            height: display.bounds.height,
+            pointerEvents: 'none'
+          }}
+        />
+      )}
 
       {/* 딤 처리 */}
       <div style={{ position: 'absolute', inset: 0, background: 'var(--overlay-dim)', pointerEvents: 'none' }} />
@@ -202,19 +205,23 @@ export function App(): React.JSX.Element {
           onCommit={mode === 'scrolling' ? commitScrolling : commitRegion}
           onCancel={cancel}
           onInteractingChange={setInteracting}
-          commitLabel={mode === 'scrolling' ? '⇊ 스크롤 캡처' : undefined}
+          commitLabel={mode === 'scrolling' ? t('⇊ 스크롤 캡처') : undefined}
           idleHint={
             mode === 'scrolling'
-              ? '스크롤 캡처할 영역을 드래그로 선택해 주세요 · 시작하면 자동으로 스크롤돼요 · ESC 취소'
+              ? t('스크롤 캡처할 영역을 드래그로 선택해 주세요 · 시작하면 자동으로 스크롤돼요 · ESC 취소')
               : undefined
           }
         />
       )}
-      {mode === 'window' && <WindowPicker onPick={commitWindow} />}
-      {mode === 'fullscreen' && session.displays.length > 1 && <DisplayPicker session={session} onPick={commitFullscreen} />}
+      {/* 창 목록은 캡슐이 있는(커서) 디스플레이에만 표시 */}
+      {mode === 'window' && showCapsule && <WindowPicker onPick={commitWindow} />}
+      {/* 전체 화면: 각 디스플레이 창에 자기 카드 표시 — 클릭한 화면을 캡처 */}
+      {mode === 'fullscreen' && <DisplayPicker session={session} onPick={commitFullscreen} />}
 
-      {/* 캡처 모드 캡슐 (드래그/조정 중에는 숨김) */}
-      {!interacting && <ModeCapsule mode={mode} onChange={setMode} onCancel={cancel} onDelaySelect={selectDelay} />}
+      {/* 캡처 모드 캡슐 (커서 디스플레이에만, 드래그/조정 중에는 숨김) */}
+      {showCapsule && !interacting && (
+        <ModeCapsule mode={mode} onChange={changeMode} onCancel={cancel} onDelaySelect={selectDelay} />
+      )}
     </div>
   )
 }

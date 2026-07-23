@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useI18n } from '../common/i18n'
 import { glassCard } from './glass'
 import type { Session } from './types'
 
@@ -9,6 +10,7 @@ interface DisplayPickerProps {
 
 /** 전체 화면 캡처(멀티 모니터): 각 디스플레이 위에 이름 카드를 띄우고 클릭한 모니터를 캡처 */
 export function DisplayPicker({ session, onPick }: DisplayPickerProps): React.JSX.Element {
+  const { t } = useI18n()
   const [hoverId, setHoverId] = useState<number | null>(null)
 
   return (
@@ -48,8 +50,8 @@ export function DisplayPicker({ session, onPick }: DisplayPickerProps): React.JS
               }}
             >
               <div style={{ fontSize: 'var(--text-h2)', fontWeight: 700 }}>
-                {d.label || `디스플레이 ${i + 1}`}
-                {d.isPrimary ? ' · 주 모니터' : ''}
+                {d.label || `${t('디스플레이')} ${i + 1}`}
+                {d.isPrimary ? ` · ${t('주 모니터')}` : ''}
               </div>
               <div
                 style={{
@@ -60,10 +62,10 @@ export function DisplayPicker({ session, onPick }: DisplayPickerProps): React.JS
                 }}
               >
                 {d.bounds.width} × {d.bounds.height}
-                {d.scaleFactor !== 1 ? ` · 배율 ${Math.round(d.scaleFactor * 100)}%` : ''}
+                {d.scaleFactor !== 1 ? ` · ${t('배율 {n}%', { n: Math.round(d.scaleFactor * 100) })}` : ''}
               </div>
               <div style={{ marginTop: 'var(--space-3)', fontSize: 'var(--text-caption)', color: 'var(--overlay-text-sub)' }}>
-                클릭하면 이 화면을 캡처해요
+                {t('클릭하면 이 화면을 캡처해요')}
               </div>
             </div>
           </div>

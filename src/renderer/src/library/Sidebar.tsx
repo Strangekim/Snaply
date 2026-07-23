@@ -4,6 +4,7 @@ import { Button } from '@ds/index'
 import type { LibraryFolder } from '@shared/ipc'
 import styles from './library.module.css'
 import type { SidebarFilter } from './useLibrary'
+import { useI18n } from '../common/i18n'
 import { FolderIcon, GridIcon, PinIcon, PlusIcon, SettingsIcon, StarIcon, TrashIcon } from './icons'
 
 export interface SidebarProps {
@@ -15,6 +16,7 @@ export interface SidebarProps {
 }
 
 export function Sidebar({ filter, folders, onSelect, onAddFolder, onDeleteFolder }: SidebarProps): JSX.Element {
+  const { t } = useI18n()
   const navClass = (active: boolean): string =>
     [styles.navItem, active ? styles.navItemActive : ''].filter(Boolean).join(' ')
 
@@ -27,7 +29,7 @@ export function Sidebar({ filter, folders, onSelect, onAddFolder, onDeleteFolder
           <span className={styles.navIcon}>
             <GridIcon size={16} />
           </span>
-          <span className={styles.navLabel}>전체</span>
+          <span className={styles.navLabel}>{t('전체')}</span>
         </button>
         <button
           type="button"
@@ -37,7 +39,7 @@ export function Sidebar({ filter, folders, onSelect, onAddFolder, onDeleteFolder
           <span className={styles.navIcon}>
             <StarIcon size={16} />
           </span>
-          <span className={styles.navLabel}>즐겨찾기</span>
+          <span className={styles.navLabel}>{t('즐겨찾기')}</span>
         </button>
         <button
           type="button"
@@ -47,13 +49,13 @@ export function Sidebar({ filter, folders, onSelect, onAddFolder, onDeleteFolder
           <span className={styles.navIcon}>
             <PinIcon size={16} />
           </span>
-          <span className={styles.navLabel}>핀 고정</span>
+          <span className={styles.navLabel}>{t('핀 고정')}</span>
         </button>
       </nav>
 
       <div className={styles.sectionTitle}>
-        <span>폴더</span>
-        <button type="button" className={styles.folderAddBtn} title="폴더를 추가해요" onClick={onAddFolder}>
+        <span>{t('폴더')}</span>
+        <button type="button" className={styles.folderAddBtn} title={t('폴더를 추가해요')} onClick={onAddFolder}>
           <PlusIcon size={14} />
         </button>
       </div>
@@ -74,7 +76,7 @@ export function Sidebar({ filter, folders, onSelect, onAddFolder, onDeleteFolder
               role="button"
               tabIndex={-1}
               className={styles.folderDeleteBtn}
-              title="폴더를 삭제해요"
+              title={t('폴더를 삭제해요')}
               onClick={(event) => {
                 event.stopPropagation()
                 onDeleteFolder(folder)
@@ -86,7 +88,7 @@ export function Sidebar({ filter, folders, onSelect, onAddFolder, onDeleteFolder
         ))}
         {folders.length === 0 && (
           <div style={{ padding: 'var(--space-2) var(--space-3)', fontSize: 'var(--text-caption)', color: 'var(--text-sub)' }}>
-            아직 폴더가 없어요
+            {t('아직 폴더가 없어요')}
           </div>
         )}
       </nav>
@@ -101,7 +103,7 @@ export function Sidebar({ filter, folders, onSelect, onAddFolder, onDeleteFolder
       >
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
           <SettingsIcon size={15} />
-          설정
+          {t('설정')}
         </span>
       </Button>
     </aside>

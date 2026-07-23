@@ -5,7 +5,15 @@ import { randomUUID } from 'crypto'
 import { handle } from '../typedIpc'
 import { bus } from '../bus'
 import { getSettings } from '../settings'
-import { broadcast, ensureWindow, getWindow, sendTo, showWindow } from '../windows'
+import {
+  broadcast,
+  ensureOverlayForDisplay,
+  getOverlayWindows,
+  pruneStaleOverlays,
+  sendTo,
+  sendToOverlays,
+  showWindow
+} from '../windows'
 import { captureScrollingRegion } from './scrolling'
 import type { CaptureMode, CaptureOptions, CaptureResult, RegionRect } from '@shared/ipc'
 import { formatFilename } from '@shared/filename'
@@ -33,21 +41,21 @@ interface Frame {
 
 async function grabAllDisplayFrames(): Promise<Frame[]> {
   const displays = screen.getAllDisplays()
-  // thumbnailSize는 정수여야 한다 — scaleFactor 1.5 × 홀수 해상도면 비정수가 되어 getSources가 throw
-  const maxW = Math.round(Math.max(...displays.map((d) => d.bounds.width * d.scaleFactor)))
-  const maxH = Math.round(Math.max(...displays.map((d) => d.bounds.height * d.scaleFactor)))
-  const sources = await desktopCapturer.getSources({
-    types: ['screen'],
-    thumbnailSize: { width: maxW, height: maxH }
-  })
   const frames: Frame[] = []
-  for (const source of sources) {
-    // display_id는 문자열이며 screen API의 id와 매칭된다
-    const display =
-      displays.find((d) => String(d.id) === source.display_id) ??
-      displays[sources.indexOf(source)] ??
-      displays[0]
-    frames.push({ displayId: display.id, image: source.thumbnail })
+  // 디스플레이마다 자기 물리 해상도로 getSources를 따로 호출한다.
+  // (thumbnailSize는 모든 소스에 공통 적용되어, 유니온 최대 크기로 한 번에 받으면
+  //  작은 모니터 프레임이 업스케일되어 화질이 뭉개진다. 정수 강제 — 비정수면 throw)
+  for (let i = 0; i < displays.length; i++) {
+    const display = displays[i]
+    const w = Math.round(display.bounds.width * display.scaleFactor)
+    const h = Math.round(display.bounds.height * display.scaleFactor)
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: w, height: h }
+    })
+    // display_id는 문자열이며 screen API의 id와 매칭된다 (실패 시 인덱스 폴백)
+    const source = sources.find((s) => String(display.id) === s.display_id) ?? sources[i] ?? sources[0]
+    if (source) frames.push({ displayId: display.id, image: source.thumbnail })
   }
   return frames
 }
@@ -86,10 +94,10 @@ export async function startCapture(options: CaptureOptions): Promise<void> {
 
 /** 오버레이가 화면에 보이는 상태라면 숨기고, 컴포지터가 반영할 시간을 잠깐 기다린다 */
 async function hideOverlayBeforeGrab(): Promise<void> {
-  const win = getWindow('overlay')
-  if (win && win.isVisible()) {
-    sendTo('overlay', 'event:overlayCancel', undefined)
-    win.hide()
+  const visible = getOverlayWindows().filter((w) => w.isVisible())
+  if (visible.length > 0) {
+    sendToOverlays('event:overlayCancel', undefined)
+    for (const win of visible) win.hide()
     await new Promise((resolve) => setTimeout(resolve, 180))
   }
 }
@@ -115,28 +123,47 @@ async function beginCapture(options: CaptureOptions): Promise<void> {
 async function openOverlay(mode: CaptureMode): Promise<void> {
   // 오버레이를 띄우기 전에 화면을 프리즈(현재 프레임 캡처)
   await hideOverlayBeforeGrab()
+  const displays = screen.getAllDisplays()
+  pruneStaleOverlays(displays.map((d) => d.id))
   const frames = await grabAllDisplayFrames()
-  const frozen = frames.map((f) => ({ displayId: f.displayId, dataUrl: f.image.toDataURL() }))
   frozenFrames = new Map(frames.map((f) => [f.displayId, f.image]))
 
-  const win = ensureWindow('overlay')
-  const send = (): void => {
-    sendTo('overlay', 'event:overlayStart', { mode, frozenFrames: frozen })
-    win.show()
-    win.focus()
-  }
-  if (win.webContents.isLoading()) {
-    win.webContents.once('did-finish-load', send)
-  } else {
-    send()
+  // 캡슐(모드 전환 UI)은 커서가 있는 디스플레이에만 표시
+  const cursorDisplay = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+  const primary = screen.getPrimaryDisplay()
+
+  for (const display of displays) {
+    const frame = frames.find((f) => f.displayId === display.id)
+    if (!frame) continue
+    const win = ensureOverlayForDisplay(display)
+    const payload = {
+      mode,
+      frozenFrames: [{ displayId: display.id, dataUrl: frame.image.toDataURL() }],
+      display: {
+        id: display.id,
+        label: display.label || '디스플레이',
+        bounds: display.bounds,
+        scaleFactor: display.scaleFactor,
+        isPrimary: display.id === primary.id
+      },
+      showCapsule: display.id === cursorDisplay.id
+    }
+    const send = (): void => {
+      win.webContents.send('event:overlayStart', payload)
+      win.show()
+      // show 직후 DPI 재조정으로 bounds가 어긋날 수 있어 한 번 더 강제한다
+      win.setBounds(display.bounds)
+      if (display.id === cursorDisplay.id) win.focus()
+    }
+    if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send)
+    else send()
   }
 }
 
 export function closeOverlay(): void {
-  const win = getWindow('overlay')
-  if (win) {
-    sendTo('overlay', 'event:overlayCancel', undefined)
-    win.hide()
+  sendToOverlays('event:overlayCancel', undefined)
+  for (const win of getOverlayWindows()) {
+    if (win.isVisible()) win.hide()
   }
 }
 
@@ -282,6 +309,11 @@ export function registerCaptureIpc(): void {
         appName: inferAppName(s.name),
         thumbnailDataUrl: s.thumbnail.toDataURL()
       }))
+  })
+
+  // 캡슐 모드 변경을 모든 오버레이 창에 동기화
+  handle('overlay:setMode', (mode) => {
+    sendToOverlays('event:overlayMode', mode)
   })
 
   handle('capture:scrolling:start', async (rect) => {

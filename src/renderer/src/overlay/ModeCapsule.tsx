@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useI18n } from '../common/i18n'
 import { glassButton, glassCapsule } from './glass'
 import type { OverlayMode } from './types'
 
@@ -22,6 +23,7 @@ interface ModeCapsuleProps {
 
 /** 오버레이 상단 중앙의 캡처 모드 전환 캡슐 툴바 (+ 지연 캡처 타이머) */
 export function ModeCapsule({ mode, onChange, onCancel, onDelaySelect }: ModeCapsuleProps): React.JSX.Element {
+  const { t } = useI18n()
   const [delayOpen, setDelayOpen] = useState(false)
 
   return (
@@ -55,7 +57,7 @@ export function ModeCapsule({ mode, onChange, onCancel, onDelaySelect }: ModeCap
             }}
             onClick={() => onChange(seg.id)}
           >
-            {seg.label}
+            {t(seg.label)}
           </button>
         )
       })}
@@ -66,7 +68,7 @@ export function ModeCapsule({ mode, onChange, onCancel, onDelaySelect }: ModeCap
         <button
           type="button"
           className="ov-hover"
-          title="지연 캡처"
+          title={t('지연 캡처')}
           style={{
             ...glassButton,
             padding: '8px 12px',
@@ -102,7 +104,7 @@ export function ModeCapsule({ mode, onChange, onCancel, onDelaySelect }: ModeCap
                   onDelaySelect(s)
                 }}
               >
-                {s}초
+                {t('{n}초', { n: s })}
               </button>
             ))}
           </div>
@@ -116,7 +118,7 @@ export function ModeCapsule({ mode, onChange, onCancel, onDelaySelect }: ModeCap
         style={{ ...glassButton, color: 'var(--overlay-text-sub)' }}
         onClick={onCancel}
       >
-        ✕ 취소
+        {t('✕ 취소')}
       </button>
     </div>
   )

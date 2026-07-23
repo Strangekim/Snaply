@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, type JSX } from 'react'
 import { BottomSheet, Button, SheetItem, ToastProvider, useToast } from '@ds/index'
 import type { ExportFormat } from '@shared/ipc'
 import { useTheme } from '../common/useTheme'
+import { useI18n } from '../common/i18n'
 import styles from './editor.module.css'
 import { docSize, useEditorStore } from './store'
 import { canRedo, canUndo } from './history'
@@ -32,6 +33,7 @@ import type { BlurObj } from './types'
 
 function EditorShell(): JSX.Element {
   const { toast } = useToast()
+  const { t } = useI18n()
   const fileName = useEditorStore((s) => s.fileName)
   const imageUrl = useEditorStore((s) => s.imageUrl)
   const zoom = useEditorStore((s) => s.zoom)
@@ -65,7 +67,7 @@ function EditorShell(): JSX.Element {
               img.src = dataUrl
             })
         )
-        .catch(() => toast('이미지를 불러오지 못했어요', { type: 'error' }))
+        .catch(() => toast(t('이미지를 불러오지 못했어요'), { type: 'error' }))
     })
   }, [openDocument, toast])
 
@@ -89,8 +91,8 @@ function EditorShell(): JSX.Element {
         dataUrl,
         overwrite: false
       })
-      .then(() => toast('저장했어요'))
-      .catch(() => toast('저장에 실패했어요', { type: 'error' }))
+      .then(() => toast(t('저장했어요')))
+      .catch(() => toast(t('저장에 실패했어요'), { type: 'error' }))
   }, [flatten, toast])
 
   const handleCopyImage = useCallback((): void => {
@@ -98,8 +100,8 @@ function EditorShell(): JSX.Element {
     if (!dataUrl) return
     void window.snaply
       .invoke('clipboard:writeImage', { dataUrl })
-      .then(() => toast('복사했어요'))
-      .catch(() => toast('복사에 실패했어요', { type: 'error' }))
+      .then(() => toast(t('복사했어요')))
+      .catch(() => toast(t('복사에 실패했어요'), { type: 'error' }))
   }, [flatten, toast])
 
   /** 스마트 리댁션 — OCR로 민감정보를 찾아 모자이크 객체 자동 생성 */
@@ -120,13 +122,13 @@ function EditorShell(): JSX.Element {
           if (rect) blurs.push(createBlurArea(rect, 'mosaic', BLUR_INTENSITY.M))
         }
         if (blurs.length === 0) {
-          toast('민감한 정보를 찾지 못했어요')
+          toast(t('민감한 정보를 찾지 못했어요'))
           return
         }
         state.addObjects(blurs)
-        toast(`${blurs.length}건 가렸어요`)
+        toast(t('{n}건 가렸어요', { n: blurs.length }))
       })
-      .catch(() => toast('민감정보 인식에 실패했어요', { type: 'error' }))
+      .catch(() => toast(t('민감정보 인식에 실패했어요'), { type: 'error' }))
       .finally(() => setRedacting(false))
   }, [redacting, toast])
 
@@ -140,12 +142,12 @@ function EditorShell(): JSX.Element {
       void window.snaply
         .invoke('export:run', { dataUrl, format })
         .then(({ filePath }) => {
-          toast('내보냈어요', { type: 'success' })
+          toast(t('내보냈어요'), { type: 'success' })
           void window.snaply.invoke('file:showInFolder', filePath)
         })
         .catch((err: unknown) => {
           const msg = err instanceof Error ? err.message : ''
-          if (!msg.includes('취소')) toast('내보내지 못했어요', { type: 'error' })
+          if (!msg.includes('취소')) toast(t('내보내지 못했어요'), { type: 'error' })
         })
     },
     [flatten, toast]
@@ -156,13 +158,13 @@ function EditorShell(): JSX.Element {
   return (
     <div className={styles.root}>
       <div className={styles.appBar}>
-        <span className={styles.fileName}>{fileName || '캡처 대기 중'}</span>
+        <span className={styles.fileName}>{fileName || t('캡처 대기 중')}</span>
         <div className={styles.spacer} />
         <button
           type="button"
           className={styles.iconButton}
-          title="실행 취소 (Ctrl+Z)"
-          aria-label="실행 취소"
+          title={t('실행 취소 (Ctrl+Z)')}
+          aria-label={t('실행 취소')}
           disabled={!canUndo(history)}
           onClick={undo}
         >
@@ -171,8 +173,8 @@ function EditorShell(): JSX.Element {
         <button
           type="button"
           className={styles.iconButton}
-          title="다시 실행 (Ctrl+Shift+Z)"
-          aria-label="다시 실행"
+          title={t('다시 실행 (Ctrl+Shift+Z)')}
+          aria-label={t('다시 실행')}
           disabled={!canRedo(history)}
           onClick={redo}
         >
@@ -184,59 +186,59 @@ function EditorShell(): JSX.Element {
           size="sm"
           disabled={!imageUrl || redacting}
           onClick={handleRedact}
-          title="OCR로 이메일·전화번호·카드번호·주민번호를 찾아 모자이크 처리해요"
+          title={t('OCR로 이메일·전화번호·카드번호·주민번호를 찾아 모자이크 처리해요')}
         >
           <IconShield size={16} />
-          &nbsp;{redacting ? '찾는 중...' : '민감정보 가리기'}
+          &nbsp;{redacting ? t('찾는 중...') : t('민감정보 가리기')}
         </Button>
         <Button
           variant="secondary"
           size="sm"
           disabled={!imageUrl}
           onClick={() => setSheet('effects')}
-          title="테두리·그림자·라운드·찢어진 가장자리"
+          title={t('테두리·그림자·라운드·찢어진 가장자리')}
         >
           <IconSparkle size={16} />
-          &nbsp;효과
+          &nbsp;{t('효과')}
         </Button>
         <Button
           variant="secondary"
           size="sm"
           onClick={() => setSheet('templates')}
-          title="비교·튜토리얼·타임라인 템플릿으로 새 문서"
+          title={t('비교·튜토리얼·타임라인 템플릿으로 새 문서')}
         >
           <IconTemplate size={16} />
-          &nbsp;템플릿
+          &nbsp;{t('템플릿')}
         </Button>
         <Button
           variant="secondary"
           size="sm"
           disabled={!imageUrl}
           onClick={handleCopyImage}
-          title="클립보드로 복사 (Ctrl+Shift+C)"
+          title={t('클립보드로 복사 (Ctrl+Shift+C)')}
         >
           <IconCopy size={16} />
-          &nbsp;복사
+          &nbsp;{t('복사')}
         </Button>
         <Button
           variant="secondary"
           size="sm"
           disabled={!imageUrl}
           onClick={() => setExportOpen(true)}
-          title="PNG·JPG·WebP·PDF·TIFF·PPTX로 내보내요"
+          title={t('PNG·JPG·WebP·PDF·TIFF·PPTX로 내보내요')}
         >
           <IconSave size={16} />
-          &nbsp;내보내기
+          &nbsp;{t('내보내기')}
         </Button>
         <Button
           variant="primary"
           size="sm"
           disabled={!imageUrl}
           onClick={handleSave}
-          title="저장 (Ctrl+S)"
+          title={t('저장 (Ctrl+S)')}
         >
           <IconSave size={16} />
-          &nbsp;저장
+          &nbsp;{t('저장')}
         </Button>
       </div>
 
@@ -248,7 +250,7 @@ function EditorShell(): JSX.Element {
           <CanvasStage />
         ) : (
           <div className={styles.canvasWrap}>
-            <div className={styles.emptyState}>캡처하면 여기서 편집할 수 있어요</div>
+            <div className={styles.emptyState}>{t('캡처하면 여기서 편집할 수 있어요')}</div>
           </div>
         )}
       </div>
@@ -258,18 +260,18 @@ function EditorShell(): JSX.Element {
       <TemplateSheet />
 
       {/* 내보내기 포맷 선택 시트 */}
-      <BottomSheet open={exportOpen} onClose={() => setExportOpen(false)} title="어떤 형식으로 내보낼까요?">
+      <BottomSheet open={exportOpen} onClose={() => setExportOpen(false)} title={t('어떤 형식으로 내보낼까요?')}>
         {(['png', 'jpg', 'webp', 'pdf', 'tiff', 'pptx'] as ExportFormat[]).map((format) => (
           <SheetItem
             key={format}
             title={format.toUpperCase()}
             description={
               format === 'pdf'
-                ? '문서로 보관하기 좋아요'
+                ? t('문서로 보관하기 좋아요')
                 : format === 'pptx'
-                  ? '슬라이드로 바로 편집할 수 있어요'
+                  ? t('슬라이드로 바로 편집할 수 있어요')
                   : format === 'webp'
-                    ? '용량이 작아요'
+                    ? t('용량이 작아요')
                     : undefined
             }
             onClick={() => handleExport(format)}
