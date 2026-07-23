@@ -1,7 +1,8 @@
 /** Snaply 설정 화면. 소유자: Architect (Phase 4). */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { JSX } from 'react'
-import { Card, Input, Segmented, Toggle, ToastProvider, useToast } from '@ds/index'
+import { Button, Card, Input, Segmented, Toggle, ToastProvider, useToast } from '@ds/index'
+import { openSupportPage } from '../common/support'
 import { useTheme } from '../common/useTheme'
 import { translate } from '../common/i18n'
 import { formatFilename } from '@shared/filename'
@@ -206,6 +207,23 @@ function SettingsScreen(): JSX.Element {
           <Toggle checked={settings.autoStart} onChange={(checked) => patch({ autoStart: checked })} aria-label={t.autoStart} />
         </div>
       </Section>
+
+      {/* 후원 카드 — 무료 배포 후 수익화 채널 */}
+      <section style={{ marginTop: 'var(--space-8)' }}>
+        <Card style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 'var(--text-section)', fontWeight: 600, color: 'var(--text-title)' }}>
+            {t.supportTitle}
+          </div>
+          <div style={{ color: 'var(--text-sub)', marginTop: 'var(--space-2)', fontSize: 'var(--text-caption)' }}>
+            {t.supportDesc}
+          </div>
+          <div style={{ marginTop: 'var(--space-4)' }}>
+            <Button variant="primary" size="md" fullWidth onClick={openSupportPage}>
+              {t.supportButton}
+            </Button>
+          </div>
+        </Card>
+      </section>
 
       {/* macOS 전용 권한 안내. TODO(platform-verify): 실기기에서 화면기록 권한 상태 조회 연동 */}
       {window.snaply.platform === 'darwin' && (

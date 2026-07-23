@@ -77,6 +77,7 @@ export const EN: Record<string, string> = {
 
   // ── 보관함 ──
   '보관함': 'Library',
+  '커피 한 잔 사주기': 'Buy me a coffee',
   '전체': 'All',
   '즐겨찾기': 'Favorites',
   '핀 고정': 'Pinned',

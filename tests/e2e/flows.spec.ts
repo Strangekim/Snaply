@@ -23,6 +23,8 @@ test.afterAll(async () => {
 test('보관함 상단에 캡처하기 버튼과 검색창이 있다', async () => {
   await expect(library.locator('button:has-text("캡처하기")')).toBeVisible({ timeout: 10_000 })
   await expect(library.locator('input[aria-label="보관함 검색"]')).toBeVisible()
+  // 후원 버튼 (사이드바 하단)
+  await expect(library.locator('button:has-text("커피 한 잔 사주기")')).toBeVisible()
 })
 
 test('전체 화면 캡처가 보관함에 자동 저장된다', async () => {
@@ -74,6 +76,8 @@ test('설정 창이 열리고 단축키 섹션이 보인다', async () => {
   const settings = await findWindow(app, 'settings.html')
   await expect(settings.locator('text=단축키').first()).toBeVisible({ timeout: 10_000 })
   await expect(settings.locator('text=저장 폴더')).toBeVisible()
+  // 후원 카드
+  await expect(settings.locator('button:has-text("커피 한 잔 사주기")')).toBeVisible()
 })
 
 test('테마를 다크로 바꾸면 즉시 반영된다', async () => {

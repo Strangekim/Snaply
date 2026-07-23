@@ -32,7 +32,10 @@ const ko = {
   permissionTitle: '화면 기록 권한이 필요해요',
   permissionDesc:
     '시스템 설정 > 개인정보 보호 및 보안 > 화면 기록에서 Snaply를 허용해 주세요. 허용하지 않으면 캡처가 검은 화면으로 나와요.',
-  saved: '저장했어요'
+  saved: '저장했어요',
+  supportTitle: 'Snaply가 마음에 드셨나요?',
+  supportDesc: 'Snaply는 무료 오픈소스예요. 커피 한 잔이 다음 업데이트를 만들어요.',
+  supportButton: '☕ 커피 한 잔 사주기'
 }
 
 /* TODO(i18n): 영어 사전 초안 — 설정 화면부터 시범 적용 */
@@ -66,7 +69,10 @@ const en: typeof ko = {
   permissionTitle: 'Screen recording permission needed',
   permissionDesc:
     'Allow Snaply in System Settings > Privacy & Security > Screen Recording, or captures will be black.',
-  saved: 'Saved'
+  saved: 'Saved',
+  supportTitle: 'Enjoying Snaply?',
+  supportDesc: 'Snaply is free and open source. A coffee fuels the next update.',
+  supportButton: '☕ Buy me a coffee'
 }
 
 export const STRINGS: Record<Locale, typeof ko> = { ko, en }

@@ -5,6 +5,7 @@ import type { LibraryFolder } from '@shared/ipc'
 import styles from './library.module.css'
 import type { SidebarFilter } from './useLibrary'
 import { useI18n } from '../common/i18n'
+import { openSupportPage } from '../common/support'
 import { FolderIcon, GridIcon, PinIcon, PlusIcon, SettingsIcon, StarIcon, TrashIcon } from './icons'
 
 export interface SidebarProps {
@@ -95,6 +96,11 @@ export function Sidebar({ filter, folders, onSelect, onAddFolder, onDeleteFolder
 
       <div className={styles.sidebarSpacer} />
 
+      <Button variant="ghost" size="sm" fullWidth onClick={openSupportPage}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          ☕ {t('커피 한 잔 사주기')}
+        </span>
+      </Button>
       <Button
         variant="ghost"
         size="sm"
