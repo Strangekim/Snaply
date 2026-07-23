@@ -81,6 +81,8 @@ interface RegionSelectProps {
   /** 고정 크기 배치 모드: W×H 사각형이 마우스를 따라다니고 클릭으로 지정 */
   pendingSize?: { w: number; h: number } | null
   onPlacePreset?: (rect: Rect) => void
+  /** 조정 단계의 현재 선택 영역 변경 알림 (지연 캡처가 이 영역을 자동 캡처하는 데 쓴다) */
+  onSelChange?: (rect: Rect | null) => void
 }
 
 /** 영역 선택: 십자선 + 돋보기 → 드래그 → 조정 단계(8방향 핸들 + 이동 + 액션바) */
@@ -95,7 +97,8 @@ export function RegionSelect({
   onSyncRect,
   resetSignal,
   pendingSize,
-  onPlacePreset
+  onPlacePreset,
+  onSelChange
 }: RegionSelectProps): React.JSX.Element {
   const { t } = useI18n()
   const [phase, setPhase] = useState<Phase>('idle')
@@ -105,8 +108,14 @@ export function RegionSelect({
   const adjustDrag = useRef<AdjustDrag | null>(null)
 
   useEffect(() => {
-    onInteractingChange(phase !== 'idle')
+    // 드래그 중에만 캡슐을 숨긴다 — 조정 단계에서는 캡슐(타이머·크기)을 쓸 수 있어야 한다
+    onInteractingChange(phase === 'drag')
   }, [phase, onInteractingChange])
+
+  // 조정 단계의 선택 영역을 부모에 알린다 (타이머 자동 캡처용)
+  useEffect(() => {
+    onSelChange?.(phase === 'adjust' && sel ? sel : null)
+  }, [phase, sel, onSelChange])
 
   // 고정 크기 캡처: 캡슐에서 지정한 W×H 영역으로 바로 조정 단계 진입 (위치만 옮기고 Enter/✓)
   useEffect(() => {

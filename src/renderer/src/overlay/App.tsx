@@ -198,13 +198,22 @@ export function App(): React.JSX.Element {
     [session, toRegionRect]
   )
 
-  // 지연 캡처: 현재 모드로 delayMs 재시작 (메인이 오버레이를 닫고 카운트다운 후 재진입)
+  /** 조정 단계의 현재 선택 영역 (타이머 자동 캡처용 — RegionSelect가 갱신) */
+  const currentSelRef = useRef<Rect | null>(null)
+  const handleSelChange = useCallback((rect: Rect | null) => {
+    currentSelRef.current = rect
+  }, [])
+
+  // 지연 캡처: 영역이 지정돼 있으면 카운트다운 후 그 영역을 자동 캡처,
+  // 아니면 캡처 화면 재진입 (메뉴/툴팁 준비용)
   const selectDelay = useCallback(
     (seconds: number) => {
       if (!session) return
-      void window.snaply.invoke('capture:start', { mode, delayMs: seconds * 1000 })
+      const sel = currentSelRef.current
+      const region = sel ? (toRegionRect(sel) ?? undefined) : undefined
+      void window.snaply.invoke('capture:start', { mode, delayMs: seconds * 1000, region })
     },
-    [session, mode]
+    [session, mode, toRegionRect]
   )
 
   const changeMode = useCallback((m: OverlayMode) => {
@@ -342,6 +351,7 @@ export function App(): React.JSX.Element {
           onPlacePreset={placePreset}
           onSyncRect={syncRect}
           resetSignal={resetSignal}
+          onSelChange={handleSelChange}
           commitLabel={mode === 'scrolling' ? t('⇊ 스크롤 캡처') : undefined}
           idleHint={
             mode === 'scrolling'

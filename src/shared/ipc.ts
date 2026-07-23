@@ -25,6 +25,8 @@ export interface CaptureOptions {
   scheduledAt?: number
   /** 멀티 모니터: 대상 디스플레이 id (fullscreen 전용) */
   displayId?: number
+  /** 지연 캡처: 이미 지정해 둔 영역 — 카운트다운 후 이 영역을 자동 캡처한다 (region/scrolling) */
+  region?: RegionRect
   afterAction?: AfterCaptureAction
 }
 
