@@ -75,7 +75,7 @@ function drawIcon(size) {
           const y = py * S + sy + 0.5
           let r = 0, g = 0, b = 0, a = 0
           if (inRoundRect(x, y, m, m, W - m, W - m, rr)) {
-            // 토스 블루 #3182F6
+            // Snaply 브랜드 블루 #3182F6
             r = 0x31; g = 0x82; b = 0xf6; a = 255
             if (inCircle(x, y, cx, cy, lensR)) { r = 255; g = 255; b = 255 }
             if (inCircle(x, y, cx, cy, lensInnerR)) { r = 0x31; g = 0x82; b = 0xf6 }

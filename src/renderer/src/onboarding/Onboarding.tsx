@@ -1,4 +1,4 @@
-/** 첫 실행 온보딩 — 토스식 3단계 풀스크린. 소유자: Architect (Phase 4). */
+/** 첫 실행 온보딩 — 3단계 풀스크린. 소유자: Architect (Phase 4). */
 import { useEffect, useState } from 'react'
 import type { JSX } from 'react'
 import { Button } from '@ds/index'

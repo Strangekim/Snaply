@@ -88,7 +88,7 @@ function presentationRels(slideCount: number): string {
   )
 }
 
-/** 최소 테마 — Pretendard/토스 그레이 계열 */
+/** 최소 테마 — Pretendard + Snaply 그레이 계열 */
 function themeXml(): string {
   return (
     XML_DECL +
